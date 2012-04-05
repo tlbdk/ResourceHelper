@@ -1,7 +1,0 @@
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\bin\Debug\ResourceHelper.dll
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\bin\Debug\ResourceHelper.pdb
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\bin\Debug\EcmaScript.NET.modified.dll
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\bin\Debug\Yahoo.Yui.Compressor.dll
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\obj\Debug\ResolveAssemblyReference.cache
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\obj\Debug\ResourceHelper.dll
-C:\Users\Peter\Documents\Visual Studio 2010\Projects\ResourceHelper\ResourceHelper\obj\Debug\ResourceHelper.pdb
