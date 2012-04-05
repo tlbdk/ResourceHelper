@@ -35,7 +35,7 @@ namespace ResourceHelper
 
     public static class HtmlHelperExtensions
     {
-        private static string scriptsFolder = "~/Scripts/"; 
+        private static string scriptsFolder = "~/Scripts/";
         private static string cssFolder = "~/Content/"; 
 
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
@@ -197,7 +197,7 @@ namespace ResourceHelper
                     if (_scripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".js";
+                        string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".bundle.js";
                         BundleFiles(server, resources.LatestScriptFile, _scripts, scriptPath);
                         result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(scriptPath)) + "\" type=\"text/javascript\"></script>\n";
                     }
@@ -205,7 +205,7 @@ namespace ResourceHelper
                     if (_styles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".css";
+                        string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".bundle.css";
                         BundleFiles(server, resources.LatestCSSFile, _styles, cssPath);
                         result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(cssPath)) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
