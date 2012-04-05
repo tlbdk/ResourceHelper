@@ -196,14 +196,17 @@ namespace ResourceHelper
                 {
                     if (_scripts.Count > 0)
                     {
-                        string scriptPath = BundleFiles(server, resources.LatestScriptFile, _scripts);
+                        // Get a hash of the files in question and generate a path.
+                        string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".js";
+                        BundleFiles(server, resources.LatestScriptFile, _scripts, scriptPath);
                         result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(scriptPath)) + "\" type=\"text/javascript\"></script>\n";
                     }
 
                     if (_styles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string cssPath = BundleFiles(server, resources.LatestCSSFile, _styles);
+                        string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".css";
+                        BundleFiles(server, resources.LatestCSSFile, _styles, cssPath);
                         result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(cssPath)) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                 }
@@ -226,10 +229,8 @@ namespace ResourceHelper
             return MvcHtmlString.Create(result);
         }
 
-        private static string BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files)
+        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, string path)
         {
-            // Get a hash of the files in question and generate a path.
-            string path = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", files)))).Replace("-", "").ToLower() + ".js";
             if (File.Exists(path) && DateTime.Compare(File.GetLastWriteTime(path), latest) >= 0)
             {
                 // We have already bundled the files.
@@ -242,7 +243,6 @@ namespace ResourceHelper
                     File.AppendAllText(server.MapPath(path), File.ReadAllText(server.MapPath(script)) + ";\n\n");
                 }
             }
-            return path;
         }
     }
 }
