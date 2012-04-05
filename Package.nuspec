@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>ResourceHelper</id>
+    <version>1.0.0</version>
+    <authors>Troels Liebe Bentsen, Peter Toft Jølving</authors>
+    <owners>Troels Liebe Bentsen, Peter Toft Jølving</owners>
+    <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
+    <projectUrl>https://github.com/tlbdk/ResourceHelper</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Resource html helper that makes it easy to bundle and minify JavaScript and CSS for MVC 3</description>
+    <releaseNotes>First release</releaseNotes>
+    <copyright>Copyright 2012</copyright>
+    <dependencies>
+      <dependency id="YUICompressor.NET" version="1.7.1.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="ResourceHelper\bin\Release\ResourceHelper.dll" target="lib\40" />
+  </files>
+</package>

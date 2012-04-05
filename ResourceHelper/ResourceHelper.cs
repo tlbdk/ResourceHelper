@@ -35,8 +35,8 @@ namespace ResourceHelper
 
     public static class HtmlHelperExtensions
     {
-        private static string scriptsFolder = "~/Scripts/"; // TODO: Get from somewhere else!
-        private static string cssFolder = "~/Content/"; // TODO: Get from somewhere else!
+        private static string scriptsFolder = "~/Scripts/"; 
+        private static string cssFolder = "~/Content/"; 
 
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
         {

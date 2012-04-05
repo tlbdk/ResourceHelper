@@ -6,9 +6,9 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("ResourceHelper")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Resource html helper that makes it easy to bundle and minify JavaScript and CSS for MVC 3")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("IT-Kartellet ApS")]
 [assembly: AssemblyProduct("ResourceHelper")]
 [assembly: AssemblyCopyright("Copyright ©  2012")]
 [assembly: AssemblyTrademark("")]
