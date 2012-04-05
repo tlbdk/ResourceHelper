@@ -64,7 +64,7 @@ namespace ResourceHelper
                 FileInfo info = new FileInfo(server.MapPath(value));
                 if (value.EndsWith(".js"))
                 {
-                    // ENsure that list exists.
+                    // Ensure that list exists.
                     if (!resources.Scripts.Keys.Contains(depth))
                     {
                         resources.Scripts.Add(depth, new List<string>());
@@ -138,10 +138,12 @@ namespace ResourceHelper
 
         private static int GetDepth(HtmlHelper html)
         {
+            // Handle resources for razor views.
             if (html.ViewDataContainer is WebPageBase)
             {
                 return ((WebPageBase)html.ViewDataContainer).OutputStack.Count;
             }
+            // Handle aspx views.
             else if (html.ViewDataContainer is ViewPage)
             {
                 return 0;// throw new Exception("What to do?");
@@ -194,40 +196,15 @@ namespace ResourceHelper
                 {
                     if (_scripts.Count > 0)
                     {
-                        // Get a hash of the files in question and generate a path.
-                        string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))) + ".js";
-                        if (File.Exists(scriptPath) && DateTime.Compare(File.GetLastWriteTime(scriptPath), resources.LatestScriptFile) >= 0)
-                        {
-                            // We have already bundled the files.
-                        }
-                        else
-                        {
-                            File.WriteAllText(server.MapPath(scriptPath), "");
-                            foreach (string script in _scripts)
-                            {
-                                File.AppendAllText(server.MapPath(scriptPath), File.ReadAllText(server.MapPath(script)) + ";\n\n");
-                            }
-                        }
-                        result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyddHHss}", File.GetLastWriteTime(scriptPath)) + "\" type=\"text/javascript\"></script>\n";
+                        string scriptPath = BundleFiles(server, resources.LatestScriptFile, _scripts);
+                        result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(scriptPath)) + "\" type=\"text/javascript\"></script>\n";
                     }
 
                     if (_styles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))) + ".css";
-                        if (File.Exists(cssPath) && DateTime.Compare(File.GetLastWriteTime(cssPath), resources.LatestCSSFile) >= 0)
-                        {
-                            // We have already bundled the files.
-                        }
-                        else
-                        {
-                            File.WriteAllText(server.MapPath(cssPath), "");
-                            foreach (string stylesheet in _styles)
-                            {
-                                File.AppendAllText(server.MapPath(cssPath), File.ReadAllText(server.MapPath(stylesheet)) + "\n\n");
-                            }
-                        }
-                        result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyddHHss}", File.GetLastWriteTime(cssPath)) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
+                        string cssPath = BundleFiles(server, resources.LatestCSSFile, _styles);
+                        result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(cssPath)) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                 }
                 else
@@ -235,18 +212,37 @@ namespace ResourceHelper
                     foreach (string resource in _styles)
                     {
                         DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
-                        result += "<link href=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyddHHss}", dt) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
+                        result += "<link href=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                     foreach (string resource in _scripts)
                     {
                         DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
-                        result += "<script src=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyddHHss}", dt) + "\" type=\"text/javascript\"></script>\n";
+                        result += "<script src=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" type=\"text/javascript\"></script>\n";
                     }
                 }
             }
 
             html.ViewData["Resources"] = new HtmlResources();
             return MvcHtmlString.Create(result);
+        }
+
+        private static string BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files)
+        {
+            // Get a hash of the files in question and generate a path.
+            string path = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", files)))).Replace("-", "").ToLower() + ".js";
+            if (File.Exists(path) && DateTime.Compare(File.GetLastWriteTime(path), latest) >= 0)
+            {
+                // We have already bundled the files.
+            }
+            else
+            {
+                File.WriteAllText(server.MapPath(path), "");
+                foreach (string script in files)
+                {
+                    File.AppendAllText(server.MapPath(path), File.ReadAllText(server.MapPath(script)) + ";\n\n");
+                }
+            }
+            return path;
         }
     }
 }
