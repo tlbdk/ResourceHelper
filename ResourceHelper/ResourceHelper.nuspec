@@ -16,7 +16,7 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="ResourceHelper\bin\Release\ResourceHelper.dll" target="lib\40" />
-    <file src="web.config.transform" target="content/Views" />
+    <file src="bin\Release\ResourceHelper.dll" target="lib\40" />
+    <file src="web.config.transform" target="content\Views" />
   </files>
 </package>

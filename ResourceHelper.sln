@@ -3,11 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResourceHelper", "ResourceHelper\ResourceHelper.csproj", "{C39839FF-7C45-49E2-BE4C-0DA175509C9A}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{55D2BF09-B586-43D0-9F6F-65B9FC191155}"
-	ProjectSection(SolutionItems) = preProject
-		Package.nuspec = Package.nuspec
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
