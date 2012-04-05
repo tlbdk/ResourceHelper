@@ -237,10 +237,13 @@ namespace ResourceHelper
             }
             else
             {
-                File.WriteAllText(server.MapPath(path), "");
-                foreach (string script in files)
+                File.Delete(server.MapPath(path));
+                using (var writer = File.CreateText(server.MapPath(path)))
                 {
-                    File.AppendAllText(server.MapPath(path), File.ReadAllText(server.MapPath(script)) + ";\n\n");
+                    foreach (string script in files)
+                    {
+                        writer.Write(File.ReadAllText(server.MapPath(script)) + ";\n\n");
+                    }
                 }
             }
         }
