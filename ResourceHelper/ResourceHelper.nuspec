@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>ResourceHelper</id>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <authors>Troels Liebe Bentsen, Peter Toft Jølving</authors>
     <owners>Troels Liebe Bentsen, Peter Toft Jølving</owners>
     <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
@@ -17,6 +17,7 @@
   </metadata>
   <files>
     <file src="bin\Release\ResourceHelper.dll" target="lib\40" />
-    <file src="web.config.transform" target="content\Views" />
+    <file src="web.config.transform" target="content" />
+    <file src="Views.web.config.transform" target="content\Views" />
   </files>
 </package>
