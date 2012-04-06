@@ -60,6 +60,9 @@
     <None Include="Views.web.config.transform" />
     <None Include="web.config.transform" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="cache.txt" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>"$(SolutionDir)tools/nuget.exe" pack "$(ProjectDir)$(ProjectName).nuspec"</PostBuildEvent>
