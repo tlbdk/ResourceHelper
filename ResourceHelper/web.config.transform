@@ -3,5 +3,7 @@
   <appSettings>
     <add key="ResourceBundle" value="false"/>
     <add key="ResourceMinify" value="false"/>
+    <add key="ScriptsFolder" value="~/Content/cache/"/>
+    <add key="StyleSheetFolder" value="~/Content/cache/"/>
   </appSettings>
 </configuration>

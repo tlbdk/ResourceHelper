@@ -322,3 +322,7 @@ div#title {
 .tri-state {
     width: 6em;
 }
+
+/** Custom stuff **/
+
+#sample { width: 195px; height: 200px; background-image: url(images/sample.png) }
