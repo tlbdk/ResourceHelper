@@ -25,6 +25,8 @@ namespace ResourceHelper
 
         public bool Bundle = false;
         public bool Minify = false;
+        public bool Debug = false;
+        public bool Strict = false;
 
         public DateTime LatestScriptFile = DateTime.MinValue;
         public DateTime LatestCSSFile = DateTime.MinValue;
@@ -36,6 +38,8 @@ namespace ResourceHelper
             PathOffset = new Dictionary<string, string>();
             bool.TryParse(ConfigurationManager.AppSettings["ResourceBundle"], out Bundle);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceMinify"], out Minify);
+            bool.TryParse(ConfigurationManager.AppSettings["ResourceDebug"], out Debug);
+            bool.TryParse(ConfigurationManager.AppSettings["ResourceStrict"], out Strict);
         }
     }
 
@@ -66,6 +70,10 @@ namespace ResourceHelper
                 resources = new HtmlResources();
                 html.ViewData["Resources"] = resources;
             }
+
+            // Make sure the paths exist
+            Directory.CreateDirectory(server.MapPath(scriptsFolder));
+            Directory.CreateDirectory(server.MapPath(cssFolder));
 
             FileInfo info = new FileInfo(server.MapPath(value));
             if (info.Exists)
@@ -98,7 +106,7 @@ namespace ResourceHelper
                                 // The resource is pre-minified. Skip.
                                 resources.Scripts[depth].Add(value);
                             }
-                            else if (File.Exists(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
+                            else if (!resources.Debug && File.Exists(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
                             {
                                 if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
                                 {
@@ -147,7 +155,10 @@ namespace ResourceHelper
             }
             else
             {
-                throw new FileNotFoundException(String.Format("Could not find file {0}", value), value);
+                if (resources.Strict)
+                {
+                    throw new FileNotFoundException(String.Format("Could not find file {0}", value), value);
+                }
             }
             return null;
 
@@ -215,13 +226,20 @@ namespace ResourceHelper
                     }
                 }
 
+                // Force bundle and mimify rebuild
+                if (resources.Debug)
+                {
+                    resources.LatestScriptFile = DateTime.Now;
+                    resources.LatestCSSFile = DateTime.Now;
+                }
+
                 if (resources.Bundle)
                 {                  
                     if (_scripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
                         string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".bundle.js";
-                        BundleFiles(server, resources.LatestScriptFile, _scripts, resources.PathOffset, scriptPath);
+                        BundleFiles(server, resources.LatestScriptFile, _scripts, resources.PathOffset, scriptPath, resources.Strict);
                         result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(scriptPath))) + "\" type=\"text/javascript\"></script>\n";
                     }
 
@@ -229,7 +247,7 @@ namespace ResourceHelper
                     {
                         // Get a hash of the files in question and generate a path.
                         string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".bundle.css";
-                        BundleFiles(server, resources.LatestCSSFile, _styles, resources.PathOffset, cssPath);
+                        BundleFiles(server, resources.LatestCSSFile, _styles, resources.PathOffset, cssPath, resources.Strict);
                         result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(cssPath))) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                 }
@@ -252,9 +270,8 @@ namespace ResourceHelper
             return MvcHtmlString.Create(result);
         }
 
-        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output)
+        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output, bool strict)
         {
-            // TODO: Add debug option to make it not cache anything
             if (File.Exists(server.MapPath(output)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(output)), latest) >= 0)
             {
                 // We have already bundled the files.
@@ -269,31 +286,54 @@ namespace ResourceHelper
                         if (file.EndsWith(".css"))
                         {
                             writer.Write("/*" + file + "*/\n");
-                            writer.Write(cssFixup(server.MapPath(file), offset[file]) + "\n\n");
+                            writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
                         }
                         else
                         {
                             // TODO: Do something for java script with fixup
                             writer.Write("/*" + file + "*/\n");
-                            writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                            try
+                            {
+                                writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                            }
+                            catch
+                            {
+                                if(strict) throw;
+                            }
                         }
                     }
                 }
             }
         }
 
-        private static string cssFixup(string filename, string pathoffset)
+        private static string cssFixup(string basepath, string filename, string pathoffset, bool strict)
+        {
+            var seen = new HashSet<string>();
+            var css_fixup = new Regex(@"((?:url\s*\()|(?:@import\s*[""'])|(?:@import\s*url\([""']))([^'""\)]+)(['""\)]+;?)", RegexOptions.Compiled | RegexOptions.Singleline);
+            var ccs_comment = new Regex(@"(?!<"")\/\*.+?\*\/(?!"")", RegexOptions.Compiled | RegexOptions.Singleline);
+            return cssFixup(css_fixup, ccs_comment, basepath, filename, pathoffset, strict, seen);
+        }
+
+        private static string cssFixup(Regex css_fixup, Regex css_comment, string basepath, string filename, string pathoffset, bool strict, HashSet<string> seen)
         {
             var data = File.ReadAllText(filename);
-            var css_fixup = new Regex(@"((?:url\s*\()|(?:@import\s*[""'])|(?:@import\s*url\([""']))([^'""\)]+)(['"")]+;?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            
-            var seen = new HashSet<string>();
+            data = css_comment.Replace(data, ""); // Remove comments
+           
             data = css_fixup.Replace(data, match =>
             {
                 // Fix url includes with the correct path offset
                 if (match.Groups[1].Value.StartsWith("url"))
                 {
-                    return match.Groups[1].Value + pathoffset + match.Groups[2].Value + match.Groups[3].Value;
+                    string newpath = pathoffset + match.Groups[2].Value;
+                    if (File.Exists(Path.GetFullPath(Path.Combine(basepath, newpath))) || !strict)
+                    {
+                        return match.Groups[1].Value + newpath + match.Groups[3].Value;
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException("The css url include " + match.Value + " was not found at the new relative location " + newpath
+                            + " (" + Path.GetFullPath(Path.Combine(basepath, newpath)) + ")", Path.GetFullPath(Path.Combine(basepath, newpath)));
+                    }
                 }
                 // Follow @import statements and include them in the stream
                 else if (match.Groups[1].Value.StartsWith("@import"))
@@ -302,16 +342,15 @@ namespace ResourceHelper
                    // Make sure we don't loop in the includes
                    if (seen.Add(importedfile))
                    {
-                       return "/*" + importedfile + "*/\n" + cssFixup(importedfile, pathoffset);
+                       return "/*" + importedfile + "*/\n" + cssFixup(css_fixup, css_comment, basepath, importedfile, pathoffset, strict, seen);
                    }
                    else
                    {
                        return "";
                    }
-                }
-                else
-                {
-                    return "";
+
+                } else {
+                    return match.Value;
                 }
             });
             return data;
