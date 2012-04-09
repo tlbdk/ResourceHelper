@@ -2,8 +2,8 @@
 <package >
   <metadata>
     <id>ResourceHelper</id>
-    <version>1.0.3</version>
-    <authors>Troels Liebe Bentsen, Peter Toft Jølving</authors>
+    <version>1.0.4</version>
+    <authors>Troes Liebe Bentsen, Peter Toft Jølving</authors>
     <owners>Troels Liebe Bentsen, Peter Toft Jølving</owners>
     <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
     <projectUrl>https://github.com/tlbdk/ResourceHelper</projectUrl>
