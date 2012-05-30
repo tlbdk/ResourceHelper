@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 /* Links
  *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
@@ -98,7 +99,7 @@ namespace ResourceHelper
                         }
 
                         // Minify the script file if necessary.
-                        if (resources.Minify)
+                        if (resources.Minify && string.IsNullOrEmpty((string)html.ViewContext.HttpContext.Session["ResourceHelper.NoMinifying"]))
                         {
                             string origname = info.Name.Substring(0, info.Name.LastIndexOf('.'));
                             if (origname.EndsWith(".min"))
@@ -120,7 +121,8 @@ namespace ResourceHelper
                                 // TODO: Try to fix up relative paths if we move the script file to another location
                                 // Minify file.
                                 string filename = scriptsFolder + origname + ".min" + info.Extension;
-                                File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
+                                MinifyFile(server.MapPath(filename), server.MapPath(value));
+                                //File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
                                 resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
 
                                 // Insert the path to the minified file.
@@ -161,7 +163,22 @@ namespace ResourceHelper
                 }
             }
             return null;
+        }
 
+        private static void MinifyFile(string newpath, string oldpath)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                try
+                {
+                    File.WriteAllText(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+                    break;
+                }
+                catch (IOException ex)
+                {
+                    Thread.Sleep(1000);
+                }
+            }
         }
 
         private static string GetPathOffset(string orgpath, string newpath) {
@@ -233,7 +250,7 @@ namespace ResourceHelper
                     resources.LatestCSSFile = DateTime.Now;
                 }
 
-                if (resources.Bundle)
+                if (resources.Bundle && string.IsNullOrEmpty((string)html.ViewContext.HttpContext.Session["ResourceHelper.NoBundling"]))
                 {                  
                     if (_scripts.Count > 0)
                     {
@@ -278,29 +295,40 @@ namespace ResourceHelper
             }
             else
             {
-                File.Delete(server.MapPath(output));
-                using (var writer = File.CreateText(server.MapPath(output)))
+                for (int i = 0; i < 5; i++)
                 {
-                    foreach (string file in files.ToArray())
+                    try
                     {
-                        if (file.EndsWith(".css"))
+                        File.Delete(server.MapPath(output));
+                        using (var writer = File.CreateText(server.MapPath(output)))
                         {
-                            writer.Write("/*" + file + "*/\n");
-                            writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
-                        }
-                        else
-                        {
-                            // TODO: Do something for java script with fixup
-                            writer.Write("/*" + file + "*/\n");
-                            try
+                            foreach (string file in files.ToArray())
                             {
-                                writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
-                            }
-                            catch
-                            {
-                                if(strict) throw;
+                                if (file.EndsWith(".css"))
+                                {
+                                    writer.Write("/*" + file + "*/\n");
+                                    writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
+                                }
+                                else
+                                {
+                                    // TODO: Do something for java script with fixup
+                                    writer.Write("/*" + file + "*/\n");
+                                    try
+                                    {
+                                        writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                                    }
+                                    catch
+                                    {
+                                        if (strict) throw;
+                                    }
+                                }
                             }
                         }
+                        break;
+                    }
+                    catch (IOException ex)
+                    {
+                        Thread.Sleep(1000);
                     }
                 }
             }
