@@ -2,14 +2,14 @@
 <package >
   <metadata>
     <id>ResourceHelper</id>
-    <version>1.0.2</version>
-    <authors>Troels Liebe Bentsen, Peter Toft Jølving</authors>
+    <version>1.0.4</version>
+    <authors>Troes Liebe Bentsen, Peter Toft Jølving</authors>
     <owners>Troels Liebe Bentsen, Peter Toft Jølving</owners>
     <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
     <projectUrl>https://github.com/tlbdk/ResourceHelper</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Resource html helper that makes it easy to bundle and minify JavaScript and CSS for MVC 3</description>
-    <releaseNotes>Add .bundle.ext to name of build files so we can git ignore them</releaseNotes>
+    <releaseNotes>Fix up css in bundle so url() includes point to the correct location and add support for following css @import statements</releaseNotes>
     <copyright>Copyright 2012</copyright>
     <dependencies>
       <dependency id="YUICompressor.NET" version="1.7.1.0" />
@@ -17,6 +17,8 @@
   </metadata>
   <files>
     <file src="bin\Release\ResourceHelper.dll" target="lib\40" />
-    <file src="web.config.transform" target="content\Views" />
+    <file src="web.config.transform" target="content" />
+    <file src="Views.web.config.transform" target="content\Views\web.config.transform" />
+    <file src="cache.txt" target="content\Content\cache" />
   </files>
 </package>

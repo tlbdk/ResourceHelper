@@ -11,15 +11,22 @@ using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 
+/* Links
+ *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
+ */
+
 namespace ResourceHelper
 {
     public class HtmlResources
     {
         public Dictionary<int, List<string>> Scripts;
         public Dictionary<int, List<string>> Stylesheets;
+        public Dictionary<string, string> PathOffset;
 
         public bool Bundle = false;
         public bool Minify = false;
+        public bool Debug = false;
+        public bool Strict = false;
 
         public DateTime LatestScriptFile = DateTime.MinValue;
         public DateTime LatestCSSFile = DateTime.MinValue;
@@ -28,16 +35,20 @@ namespace ResourceHelper
         {
             Scripts = new Dictionary<int, List<string>>();
             Stylesheets = new Dictionary<int, List<string>>();
+            PathOffset = new Dictionary<string, string>();
             bool.TryParse(ConfigurationManager.AppSettings["ResourceBundle"], out Bundle);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceMinify"], out Minify);
+            bool.TryParse(ConfigurationManager.AppSettings["ResourceDebug"], out Debug);
+            bool.TryParse(ConfigurationManager.AppSettings["ResourceStrict"], out Strict);
         }
     }
 
     public static class HtmlHelperExtensions
     {
         private static string scriptsFolder = "~/Scripts/";
-        private static string cssFolder = "~/Content/"; 
+        private static string cssFolder = "~/Content/";
 
+        // TODO: Add support for value of *.js or *.css
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
         {
             int depth = GetDepth(html);
@@ -46,11 +57,12 @@ namespace ResourceHelper
             {
                 scriptsFolder = ConfigurationManager.AppSettings["ScriptsFolder"];
             }
-            if (ConfigurationManager.AppSettings["CSSFolder"] != null)
+            if (ConfigurationManager.AppSettings["StyleSheetFolder"] != null)
             {
-                cssFolder = ConfigurationManager.AppSettings["CSSFolder"];
+                cssFolder = ConfigurationManager.AppSettings["StyleSheetFolder"];
             }
 
+            var url = new UrlHelper(html.ViewContext.RequestContext);
             var server = html.ViewContext.RequestContext.HttpContext.Server;
             var resources = (HtmlResources)html.ViewData["Resources"];
             if (resources == null)
@@ -59,9 +71,16 @@ namespace ResourceHelper
                 html.ViewData["Resources"] = resources;
             }
 
-            if (File.Exists(server.MapPath(value)))
+            // Make sure the paths exist
+            Directory.CreateDirectory(server.MapPath(scriptsFolder));
+            Directory.CreateDirectory(server.MapPath(cssFolder));
+
+            FileInfo info = new FileInfo(server.MapPath(value));
+            if (info.Exists)
             {
-                FileInfo info = new FileInfo(server.MapPath(value));
+                // Find the path diffrence so we can fix up included resources in fx css
+                resources.PathOffset[value] = GetPathOffset(url.Content(value.Substring(0, value.Length - info.Name.Length)), url.Content(scriptsFolder));
+
                 if (value.EndsWith(".js"))
                 {
                     // Ensure that list exists.
@@ -69,6 +88,7 @@ namespace ResourceHelper
                     {
                         resources.Scripts.Add(depth, new List<string>());
                     }
+
                     if (!resources.Scripts[depth].Contains(value))
                     {
                         // Note the latest date a file was changed.
@@ -86,7 +106,7 @@ namespace ResourceHelper
                                 // The resource is pre-minified. Skip.
                                 resources.Scripts[depth].Add(value);
                             }
-                            else if (File.Exists(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
+                            else if (!resources.Debug && File.Exists(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
                             {
                                 if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
                                 {
@@ -97,6 +117,7 @@ namespace ResourceHelper
                             }
                             else
                             {
+                                // TODO: Try to fix up relative paths if we move the script file to another location
                                 // Minify file.
                                 string filename = scriptsFolder + origname + ".min" + info.Extension;
                                 File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
@@ -104,6 +125,9 @@ namespace ResourceHelper
 
                                 // Insert the path to the minified file.
                                 resources.Scripts[depth].Add(filename);
+
+                                // File changed named because we are using the mimified version 
+                                resources.PathOffset[filename] = resources.PathOffset[value];
                             }
                         }
                         else
@@ -131,9 +155,19 @@ namespace ResourceHelper
             }
             else
             {
-                throw new FileNotFoundException(String.Format("Could not find file {0}", value), value);
+                if (resources.Strict)
+                {
+                    throw new FileNotFoundException(String.Format("Could not find file {0}", value), value);
+                }
             }
             return null;
+
+        }
+
+        private static string GetPathOffset(string orgpath, string newpath) {
+            var uri_orginal = new Uri("http://somehost" + orgpath);
+            var uri_new = new Uri("http://somehost" + newpath);
+            return uri_new.MakeRelativeUri(uri_orginal).ToString();
         }
 
         private static int GetDepth(HtmlHelper html)
@@ -192,22 +226,29 @@ namespace ResourceHelper
                     }
                 }
 
-                if (resources.Bundle)
+                // Force bundle and mimify rebuild
+                if (resources.Debug)
                 {
+                    resources.LatestScriptFile = DateTime.Now;
+                    resources.LatestCSSFile = DateTime.Now;
+                }
+
+                if (resources.Bundle)
+                {                  
                     if (_scripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
                         string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".bundle.js";
-                        BundleFiles(server, resources.LatestScriptFile, _scripts, scriptPath);
-                        result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(scriptPath)) + "\" type=\"text/javascript\"></script>\n";
+                        BundleFiles(server, resources.LatestScriptFile, _scripts, resources.PathOffset, scriptPath, resources.Strict);
+                        result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(scriptPath))) + "\" type=\"text/javascript\"></script>\n";
                     }
 
                     if (_styles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
                         string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".bundle.css";
-                        BundleFiles(server, resources.LatestCSSFile, _styles, cssPath);
-                        result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(cssPath)) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
+                        BundleFiles(server, resources.LatestCSSFile, _styles, resources.PathOffset, cssPath, resources.Strict);
+                        result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(cssPath))) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                 }
                 else
@@ -229,23 +270,90 @@ namespace ResourceHelper
             return MvcHtmlString.Create(result);
         }
 
-        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, string path)
+        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output, bool strict)
         {
-            if (File.Exists(path) && DateTime.Compare(File.GetLastWriteTime(path), latest) >= 0)
+            if (File.Exists(server.MapPath(output)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(output)), latest) >= 0)
             {
                 // We have already bundled the files.
             }
             else
             {
-                File.Delete(server.MapPath(path));
-                using (var writer = File.CreateText(server.MapPath(path)))
+                File.Delete(server.MapPath(output));
+                using (var writer = File.CreateText(server.MapPath(output)))
                 {
-                    foreach (string script in files)
+                    foreach (string file in files.ToArray())
                     {
-                        writer.Write(File.ReadAllText(server.MapPath(script)) + ";\n\n");
+                        if (file.EndsWith(".css"))
+                        {
+                            writer.Write("/*" + file + "*/\n");
+                            writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
+                        }
+                        else
+                        {
+                            // TODO: Do something for java script with fixup
+                            writer.Write("/*" + file + "*/\n");
+                            try
+                            {
+                                writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                            }
+                            catch
+                            {
+                                if(strict) throw;
+                            }
+                        }
                     }
                 }
             }
+        }
+
+        private static string cssFixup(string basepath, string filename, string pathoffset, bool strict)
+        {
+            var seen = new HashSet<string>();
+            var css_fixup = new Regex(@"((?:url\s*\()|(?:@import\s*[""'])|(?:@import\s*url\([""']))([^'""\)]+)(['""\)]+;?)", RegexOptions.Compiled | RegexOptions.Singleline);
+            var ccs_comment = new Regex(@"(?!<"")\/\*.+?\*\/(?!"")", RegexOptions.Compiled | RegexOptions.Singleline);
+            return cssFixup(css_fixup, ccs_comment, basepath, filename, pathoffset, strict, seen);
+        }
+
+        private static string cssFixup(Regex css_fixup, Regex css_comment, string basepath, string filename, string pathoffset, bool strict, HashSet<string> seen)
+        {
+            var data = File.ReadAllText(filename);
+            data = css_comment.Replace(data, ""); // Remove comments
+           
+            data = css_fixup.Replace(data, match =>
+            {
+                // Fix url includes with the correct path offset
+                if (match.Groups[1].Value.StartsWith("url"))
+                {
+                    string newpath = pathoffset + match.Groups[2].Value;
+                    if (File.Exists(Path.GetFullPath(Path.Combine(basepath, newpath))) || !strict)
+                    {
+                        return match.Groups[1].Value + newpath + match.Groups[3].Value;
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException("The css url include " + match.Value + " was not found at the new relative location " + newpath
+                            + " (" + Path.GetFullPath(Path.Combine(basepath, newpath)) + ")", Path.GetFullPath(Path.Combine(basepath, newpath)));
+                    }
+                }
+                // Follow @import statements and include them in the stream
+                else if (match.Groups[1].Value.StartsWith("@import"))
+                {                   
+                   string importedfile = Path.Combine(Path.GetDirectoryName(filename), match.Groups[2].Value);
+                   // Make sure we don't loop in the includes
+                   if (seen.Add(importedfile))
+                   {
+                       return "/*" + importedfile + "*/\n" + cssFixup(css_fixup, css_comment, basepath, importedfile, pathoffset, strict, seen);
+                   }
+                   else
+                   {
+                       return "";
+                   }
+
+                } else {
+                    return match.Value;
+                }
+            });
+            return data;
         }
     }
 }

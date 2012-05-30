@@ -53,8 +53,15 @@
     <Compile Include="ResourceHelper.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ResourceHelper.nuspec" />
+    <None Include="ResourceHelper.nuspec">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
+    <None Include="Views.web.config.transform" />
+    <None Include="web.config.transform" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="cache.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

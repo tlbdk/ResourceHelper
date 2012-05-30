@@ -1,10 +1,11 @@
 <?xml version="1.0"?>
 <configuration>
-  <system.web.webPages.razor>
-    <pages pageBaseType="System.Web.Mvc.WebViewPage">
-      <namespaces>
-        <add namespace="ResourceHelper" />
-      </namespaces>
-    </pages>
-  </system.web.webPages.razor>
+  <appSettings>
+    <add key="ResourceBundle" value="false"/>
+    <add key="ResourceMinify" value="false"/>
+    <add key="ResourceStrict" value="true"/>
+    <add key="ResourceDebug" value="false"/>
+    <add key="ScriptsFolder" value="~/Content/cache/"/>
+    <add key="StyleSheetFolder" value="~/Content/cache/"/>
+  </appSettings>
 </configuration>
