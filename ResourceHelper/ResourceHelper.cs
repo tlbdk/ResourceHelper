@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 /* Links
  *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
@@ -98,7 +99,7 @@ namespace ResourceHelper
                         }
 
                         // Minify the script file if necessary.
-                        if (resources.Minify)
+                        if (resources.Minify && string.IsNullOrEmpty((string)html.ViewContext.HttpContext.Session["ResourceHelper.NoMinifying"]))
                         {
                             string origname = info.Name.Substring(0, info.Name.LastIndexOf('.'));
                             if (origname.EndsWith(".min"))
@@ -120,7 +121,8 @@ namespace ResourceHelper
                                 // TODO: Try to fix up relative paths if we move the script file to another location
                                 // Minify file.
                                 string filename = scriptsFolder + origname + ".min" + info.Extension;
-                                File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
+                                MinifyFile(server.MapPath(filename), server.MapPath(value));
+                                //File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
                                 resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
 
                                 // Insert the path to the minified file.
@@ -161,7 +163,26 @@ namespace ResourceHelper
                 }
             }
             return null;
+        }
 
+        private static void MinifyFile(string newpath, string oldpath, int count = 0)
+        {
+            try
+            {
+                File.WriteAllText(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+            }
+            catch (IOException ex)
+            {
+                if (count < 5)
+                {
+                    Thread.Sleep(1000);
+                    MinifyFile(newpath, oldpath, ++count);
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
         }
 
         private static string GetPathOffset(string orgpath, string newpath) {
@@ -233,7 +254,7 @@ namespace ResourceHelper
                     resources.LatestCSSFile = DateTime.Now;
                 }
 
-                if (resources.Bundle)
+                if (resources.Bundle && string.IsNullOrEmpty((string)html.ViewContext.HttpContext.Session["ResourceHelper.NoBundling"]))
                 {                  
                     if (_scripts.Count > 0)
                     {
@@ -270,7 +291,7 @@ namespace ResourceHelper
             return MvcHtmlString.Create(result);
         }
 
-        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output, bool strict)
+        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output, bool strict, int count = 0)
         {
             if (File.Exists(server.MapPath(output)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(output)), latest) >= 0)
             {
@@ -278,29 +299,44 @@ namespace ResourceHelper
             }
             else
             {
-                File.Delete(server.MapPath(output));
-                using (var writer = File.CreateText(server.MapPath(output)))
+                try
                 {
-                    foreach (string file in files.ToArray())
+                    File.Delete(server.MapPath(output));
+                    using (var writer = File.CreateText(server.MapPath(output)))
                     {
-                        if (file.EndsWith(".css"))
+                        foreach (string file in files.ToArray())
                         {
-                            writer.Write("/*" + file + "*/\n");
-                            writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
-                        }
-                        else
-                        {
-                            // TODO: Do something for java script with fixup
-                            writer.Write("/*" + file + "*/\n");
-                            try
+                            if (file.EndsWith(".css"))
                             {
-                                writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                                writer.Write("/*" + file + "*/\n");
+                                writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
                             }
-                            catch
+                            else
                             {
-                                if(strict) throw;
+                                // TODO: Do something for java script with fixup
+                                writer.Write("/*" + file + "*/\n");
+                                try
+                                {
+                                    writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                                }
+                                catch
+                                {
+                                    if (strict) throw;
+                                }
                             }
                         }
+                    }
+                }
+                catch (IOException ex)
+                {
+                    if (count < 5)
+                    {
+                        Thread.Sleep(1000);
+                        BundleFiles(server, latest, files, offset, output, strict, ++count);
+                    }
+                    else
+                    {
+                        throw ex;
                     }
                 }
             }
