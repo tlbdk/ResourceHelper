@@ -165,22 +165,18 @@ namespace ResourceHelper
             return null;
         }
 
-        private static void MinifyFile(string newpath, string oldpath, int count = 0)
+        private static void MinifyFile(string newpath, string oldpath)
         {
-            try
+            for (int i = 0; i < 5; i++)
             {
-                File.WriteAllText(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
-            }
-            catch (IOException ex)
-            {
-                if (count < 5)
+                try
+                {
+                    File.WriteAllText(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+                    break;
+                }
+                catch (IOException ex)
                 {
                     Thread.Sleep(1000);
-                    MinifyFile(newpath, oldpath, ++count);
-                }
-                else
-                {
-                    throw ex;
                 }
             }
         }
@@ -291,7 +287,7 @@ namespace ResourceHelper
             return MvcHtmlString.Create(result);
         }
 
-        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output, bool strict, int count = 0)
+        private static void BundleFiles(HttpServerUtilityBase server, DateTime latest, List<string> files, Dictionary<String, String> offset, string output, bool strict)
         {
             if (File.Exists(server.MapPath(output)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(output)), latest) >= 0)
             {
@@ -299,44 +295,40 @@ namespace ResourceHelper
             }
             else
             {
-                try
+                for (int i = 0; i < 5; i++)
                 {
-                    File.Delete(server.MapPath(output));
-                    using (var writer = File.CreateText(server.MapPath(output)))
+                    try
                     {
-                        foreach (string file in files.ToArray())
+                        File.Delete(server.MapPath(output));
+                        using (var writer = File.CreateText(server.MapPath(output)))
                         {
-                            if (file.EndsWith(".css"))
+                            foreach (string file in files.ToArray())
                             {
-                                writer.Write("/*" + file + "*/\n");
-                                writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
-                            }
-                            else
-                            {
-                                // TODO: Do something for java script with fixup
-                                writer.Write("/*" + file + "*/\n");
-                                try
+                                if (file.EndsWith(".css"))
                                 {
-                                    writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                                    writer.Write("/*" + file + "*/\n");
+                                    writer.Write(cssFixup(Path.GetDirectoryName(server.MapPath(output)), server.MapPath(file), offset[file], strict) + "\n\n");
                                 }
-                                catch
+                                else
                                 {
-                                    if (strict) throw;
+                                    // TODO: Do something for java script with fixup
+                                    writer.Write("/*" + file + "*/\n");
+                                    try
+                                    {
+                                        writer.Write(File.ReadAllText(server.MapPath(file)) + ";\n\n");
+                                    }
+                                    catch
+                                    {
+                                        if (strict) throw;
+                                    }
                                 }
                             }
                         }
+                        break;
                     }
-                }
-                catch (IOException ex)
-                {
-                    if (count < 5)
+                    catch (IOException ex)
                     {
                         Thread.Sleep(1000);
-                        BundleFiles(server, latest, files, offset, output, strict, ++count);
-                    }
-                    else
-                    {
-                        throw ex;
                     }
                 }
             }
