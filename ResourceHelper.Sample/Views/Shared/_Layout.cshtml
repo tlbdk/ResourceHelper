@@ -27,6 +27,12 @@
                 </ul>
             </nav>
         </header>
+        <section id="session">
+            @foreach (string key in Session.Keys)
+            {
+                <text>@key = @Session[key]<br /></text>
+            }
+        </section>
         <section id="main">
             @RenderBody()
         </section>
