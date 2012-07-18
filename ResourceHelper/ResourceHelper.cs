@@ -16,6 +16,24 @@ using System.Threading;
  *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
  */
 
+// Links: http://www.hanselman.com/blog/NuGetPackageOfTheWeek1ASPNETSpriteAndImageOptimization.aspx
+// TODO: Support Html.ResourceGroup("~/Content/widget-small") // This index all the resource in widget-small and create sprite out of the images in the folder
+//               Html.Resource("~/Content/widget-small/news.gif") // This creates an image tag pointing to the sprite, use Cache to store lookup map
+
+// TODO: Support Html.ResourceGroup("~/Content/themes/base", @"^jquery\.ui.*\.css$") // This index all the resources in base that maches the regex and creates a bundle out of them
+//               Html.ResourceGroup("~/Content/themes/base", @"^jquery\.ui.*\.css$", true) // Recurse into folder
+//               Html.Resource("~/Content/themes/base/jquery.ui.all.css") // Will make sure jquery.ui.all.css is first in the bundle 
+//
+// TODO: Support CSS image inlining, config option ResourceImgInline=Size in bytes
+//
+// TODO: Support pointing to a CDN for jquery includes, config option ResourceCDN=Google|Microsoft
+//
+// TODO: Support settings options, Html.Resource("~/Content/themes/base/jquery.ui.all.css", false, false, false) // (path, bundle, minifiy, CDN) will overwrite configuration
+// 
+// TODO: Support Html.Resource("~/Content/themes/base/*.css") // Glob pattern
+// TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$") // Regex pattern
+// TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$", true) // Regex pattern with recurse
+
 namespace ResourceHelper
 {
     public class HtmlResources
