@@ -1,3 +1,4 @@
-
 *.suo
 *.nupkg
+/ResourceHelper.Tests/bin
+/ResourceHelper.Tests/obj
