@@ -7,6 +7,8 @@ using System.Collections;
 using System.Web.Mvc;
 using System.IO;
 using System.Reflection;
+using System.Collections.Specialized;
+using System.Web.SessionState;
 
 namespace ResourceHelper.Tests
 {
@@ -21,9 +23,35 @@ namespace ResourceHelper.Tests
             get { return new FakeHttpRequest(); }
         }
 
+        public override HttpResponseBase Response
+        {
+            get { return new FakeHttpResponse(); }
+        }
+
         public override HttpServerUtilityBase Server
         {
             get { return new FakeHttpServerUtility(); }
+        }
+
+        public override HttpSessionStateBase Session
+        {
+            get { return new FakeHttpSession(); }
+        }
+    }
+
+    internal sealed class FakeHttpSession : HttpSessionStateBase
+    {
+        private readonly NameValueCollection objects = new NameValueCollection();
+
+        public override object this[string name]
+        {
+            get { return (objects.AllKeys.Contains(name)) ? objects[name] : null; }
+            set { objects[name] = (string)value; }
+        }
+
+        public override NameObjectCollectionBase.KeysCollection Keys
+        {
+            get { return objects.Keys; }
         }
     }
 
@@ -35,17 +63,20 @@ namespace ResourceHelper.Tests
 
     public class FakeHttpServerUtility : HttpServerUtilityBase
     {
-        string ServerRoot = Directory.GetCurrentDirectory();
-
         public override string MapPath(string path)
         {
-            var test = ServerRoot + path.Replace("~", null).Replace('/', '\\');
-            return test;
+            return Directory.GetCurrentDirectory() + path.Replace("~", "").Replace('/', '\\');
         }
     }
 
     public class FakeHttpRequest : HttpRequestBase
     {
+        public override NameValueCollection ServerVariables
+        {
+            get { return new NameValueCollection(); }
+        }
+
+
         public override string AppRelativeCurrentExecutionFilePath
         {
             get { return "~/"; }
@@ -55,7 +86,18 @@ namespace ResourceHelper.Tests
         {
             get { return ""; }
         }
+
+        public override string ApplicationPath
+        {
+            get { return "/"; }
+        }
     }
 
-
+    public class FakeHttpResponse : HttpResponseBase
+    {
+        public override string ApplyAppPathModifier(string path) {
+            return path.Replace("~", "/");
+        }
+         
+    }
 }

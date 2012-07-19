@@ -17,6 +17,7 @@ namespace ResourceHelper.Tests
 
             if (returnCode != 0)
                 Console.Beep();
+            Console.ReadKey();
         }
     }
 }

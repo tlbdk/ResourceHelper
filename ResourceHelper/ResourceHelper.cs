@@ -28,7 +28,7 @@ using System.Threading;
 //
 // TODO: Support pointing to a CDN for jquery includes, config option ResourceCDN=Google|Microsoft
 //
-// TODO: Support settings options, Html.Resource("~/Content/themes/base/jquery.ui.all.css", false, false, false) // (path, bundle, minifiy, CDN) will overwrite configuration
+// TODO: Support settings options, Html.Resource("~/Content/themes/base/jquery.ui.all.css", ResourceOptions) // (path, bundle, minifiy, CDN) will overwrite configuration
 // 
 // TODO: Support Html.Resource("~/Content/themes/base/*.css") // Glob pattern
 // TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$") // Regex pattern
@@ -62,12 +62,41 @@ namespace ResourceHelper
         }
     }
 
+    public class ResourceOptions {
+        public bool? Bundle;
+        public bool? Minify;
+        public bool? Debug;
+        public bool? Strict;
+    }
+
     public static class HtmlHelperExtensions
     {
         private static string scriptsFolder = "~/Scripts/";
         private static string cssFolder = "~/Content/";
 
-        // TODO: Add support for value of *.js or *.css
+        // TODO: Implement
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, ResourceOptions options)
+        {
+            return null;
+        }
+
+        // TODO: Implement
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive)
+        {
+            return null;
+        }
+
+        // TODO: Implement
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive)
+        {
+            return null;
+        }
+
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex)
+        {
+            return null;
+        }
+
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
         {
             int depth = GetDepth(html);
@@ -117,7 +146,7 @@ namespace ResourceHelper
                         }
 
                         // Minify the script file if necessary.
-                        if (resources.Minify && string.IsNullOrEmpty((string)html.ViewContext.HttpContext.Session["ResourceHelper.NoMinifying"]))
+                        if (resources.Minify)
                         {
                             string origname = info.Name.Substring(0, info.Name.LastIndexOf('.'));
                             if (origname.EndsWith(".min"))
@@ -269,7 +298,7 @@ namespace ResourceHelper
                     resources.LatestCSSFile = DateTime.Now;
                 }
 
-                if (resources.Bundle && string.IsNullOrEmpty((string)html.ViewContext.HttpContext.Session["ResourceHelper.NoBundling"]))
+                if (resources.Bundle)
                 {                  
                     if (_scripts.Count > 0)
                     {
