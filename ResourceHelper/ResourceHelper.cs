@@ -219,7 +219,8 @@ namespace ResourceHelper
             }
             else
             {
-                throw new NotSupportedException("The current viewengine is not supported.");
+                return 0;
+                //throw new NotSupportedException("The current viewengine is not supported.");
             }
         }
 
