@@ -12,6 +12,25 @@ using System.Web.SessionState;
 
 namespace ResourceHelper.Tests
 {
+    public static class FakeUtils
+    {
+        public static HtmlHelper CreateHtmlHelper(string WebRoot)
+        {
+            // Cleanup up cache directoy
+            string CacheDir = WebRoot + @"Contant\Cache";
+            if (Directory.Exists(CacheDir))
+            {
+                Directory.Delete(CacheDir, true);
+            }
+            Directory.CreateDirectory(CacheDir);
+
+            // Create some mock objects to create a context
+            ViewContext viewContext = new ViewContext();
+            viewContext.HttpContext = new FakeHttpContext();
+            return new HtmlHelper(viewContext, new FakeViewDataContainer());
+        }
+    }
+
     public class FakeHttpContext : HttpContextBase
     {
         private Dictionary<object, object> _items = new Dictionary<object, object>();

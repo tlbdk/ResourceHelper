@@ -56,10 +56,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TestCDN.cs" />
+    <Compile Include="TestGroup.cs" />
+    <Compile Include="TestOptions.cs" />
+    <Compile Include="TestRegex.cs" />
+    <Compile Include="TestStrict.cs" />
     <Compile Include="MockClasses.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TestFixture.cs" />
+    <Compile Include="TestGlob.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
