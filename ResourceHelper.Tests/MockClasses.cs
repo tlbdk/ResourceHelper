@@ -29,6 +29,11 @@ namespace ResourceHelper.Tests
             viewContext.HttpContext = new FakeHttpContext();
             return new HtmlHelper(viewContext, new FakeViewDataContainer());
         }
+
+		public static bool IsRunningOnMono ()
+		{
+			return Type.GetType ("Mono.Runtime") != null;
+		}
     }
 
     public class FakeHttpContext : HttpContextBase
@@ -84,7 +89,11 @@ namespace ResourceHelper.Tests
     {
         public override string MapPath(string path)
         {
-            return Directory.GetCurrentDirectory() + path.Replace("~", "").Replace('/', '\\');
+			if(FakeUtils.IsRunningOnMono()) {
+				return Directory.GetCurrentDirectory() + path.Replace("~", "");
+			} else {
+				return Directory.GetCurrentDirectory() + path.Replace("~", "").Replace('/', '\\');
+			}
         }
     }
 

@@ -43,7 +43,7 @@ namespace ResourceHelper.Tests
         public void TestStrictFileFound()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
+            //ConfigurationManager.AppSettings["ResourceBundle"] = "false"; FIXME, this won't work as it's readonly
             html.Resource("~/Content/Site.css");
             StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
         }
