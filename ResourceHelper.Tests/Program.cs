@@ -28,14 +28,13 @@ namespace ResourceHelper.Tests
 		[SetUp]
 		public void RunBeforeAnyTests ()
 		{
-			Environment.SetEnvironmentVariable ("RHWEBROOT", "/home/tlb/git/ResourceHelper/ResourceHelper.Sample/");
-			//Environment.SetEnvironmentVariable ("RHWEBROOT", @"C:\Users\Troels Liebe Bentsen\Desktop\ResourceHelper\ResourceHelper.Sample\");
+
 		}
 			
 		[TearDown]
 		public void RunAfterAnyTests ()
 		{
-			Environment.SetEnvironmentVariable ("RHWEBROOT", null);
+
 		}
 	}
 

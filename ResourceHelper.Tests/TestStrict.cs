@@ -15,12 +15,13 @@ namespace ResourceHelper.Tests
     [TestFixture]
     public class TestStrict
     {
-        string WebRoot = Environment.GetEnvironmentVariable("RHWEBROOT");
+        string WebRoot;
 
         [SetUp]
         public void Init()
         {
             // Set sample as root
+            WebRoot = FakeUtils.GetWebRoot(TestContext.CurrentContext.TestDirectory);
             Directory.SetCurrentDirectory(WebRoot);
         }
 
@@ -43,8 +44,8 @@ namespace ResourceHelper.Tests
         public void TestStrictFileFound()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            //ConfigurationManager.AppSettings["ResourceBundle"] = "false"; FIXME, this won't work as it's readonly
-            html.Resource("~/Content/Site.css");
+            ConfigurationManager.AppSettings["ResourceBundle"] = "false"; //FIXME, this won't work as it's will be readonly
+            html.Resource("~/Content/Site.css", new HTMLResourceOptions() { Bundle = false, Minify = false } );
             StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
         }
     }

@@ -18,13 +18,14 @@ namespace ResourceHelper.Tests
     [TestFixture]
     public class TestRegex
     {
-        string WebRoot = Environment.GetEnvironmentVariable("RHWEBROOT");
+        string WebRoot;
        
         [SetUp]
         public void Init()
         {
             // Set sample as root
-            Directory.SetCurrentDirectory(WebRoot);       
+            WebRoot = FakeUtils.GetWebRoot(TestContext.CurrentContext.TestDirectory);
+            Directory.SetCurrentDirectory(WebRoot); 
         }
 
         /*

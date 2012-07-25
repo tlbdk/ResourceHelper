@@ -17,34 +17,39 @@ namespace ResourceHelper.Tests
     [TestFixture]
     public class TestGlob
     {
-        string WebRoot = Environment.GetEnvironmentVariable("RHWEBROOT");
+        string WebRoot;
        
         [SetUp]
         public void Init()
         {
             // Set sample as root
+            WebRoot = FakeUtils.GetWebRoot(TestContext.CurrentContext.TestDirectory);
             Directory.SetCurrentDirectory(WebRoot);       
         }
 
-        /*
+        
         [Test]
-        public void TestGlob()
+        public void TestSimpleGlob()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
             ConfigurationManager.AppSettings["ResourceBundle"] = "false";
             html.Resource("~/Content/*.css"); // Use Directory.GetFiles("*.exe")
-            StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
+            var htmlstr = html.RenderResources().ToHtmlString();
+            StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);
+            StringAssert.Contains("/Content/Test.css", htmlstr);
         }
-
+        
         [Test]
         public void TestGlobRecursive()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
             ConfigurationManager.AppSettings["ResourceBundle"] = "false";
-            html.Resource("~/Content/*.css", true); // Use Directory.GetFiles("*.exe")
-            StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
+            html.Resource("~/Content/*.css", true);
+            var htmlstr = html.RenderResources().ToHtmlString();
+            StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);
+            StringAssert.Contains("/Content/themes/base/jquery.ui.theme.css", htmlstr);
         }
-
+        /*
         [Test]
         public void TestOptions()
         {

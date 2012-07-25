@@ -16,19 +16,25 @@ using System.Threading;
  *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
  */
 
-
-
-// 
-
-
-
 namespace ResourceHelper
 {
+    public class HTMLResourceOptions
+    {
+        public bool? Bundle;
+        public bool? Minify;
+        public bool? Debug;
+        public bool? Strict;
+        public int? Inline;
+        public string OutputPath;
+    }
+
     public class HtmlResources
     {
         public Dictionary<int, List<string>> Scripts;
         public Dictionary<int, List<string>> Stylesheets;
         public Dictionary<string, string> PathOffset;
+        public Dictionary<string, HTMLResourceOptions> Options;
+        public Dictionary<string, List<string>> Groups;
 
         public bool Bundle = false;
         public bool Minify = false;
@@ -41,58 +47,122 @@ namespace ResourceHelper
 
         public HtmlResources()
         {
+            // We store the script and stylesheets on different levels depending on where they where added in the process so we get the order rigth
             Scripts = new Dictionary<int, List<string>>();
             Stylesheets = new Dictionary<int, List<string>>();
             PathOffset = new Dictionary<string, string>();
+            Options = new Dictionary<string, HTMLResourceOptions>();
+            Groups = new Dictionary<string, List<string>>();
             bool.TryParse(ConfigurationManager.AppSettings["ResourceBundle"], out Bundle);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceMinify"], out Minify);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceDebug"], out Debug);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceStrict"], out Strict);
-            //TODO: Implement int
-            //bool.TryParse(ConfigurationManager.AppSettings["ResourceInline"], out Inline);
+            int.TryParse(ConfigurationManager.AppSettings["ResourceInline"], out Inline);            
         }
-    }
-
-    public class ResourceOptions {
-        public bool? Bundle;
-        public bool? Minify;
-        public bool? Debug;
-        public bool? Strict;
-        public int? Inline;
     }
 
     public static class HtmlHelperExtensions
     {
-        private static string scriptsFolder = "~/Scripts/";
-        private static string cssFolder = "~/Content/";
+        private static string scriptsFolder = "~/Content/cache/";
+        private static string cssFolder = "~/Content/cache/";
 
-        // TODO: Implement
-        public static MvcHtmlString Resource(this HtmlHelper html, string value, ResourceOptions options)
+
+        // Simple/Glob: html.ResourceGroup("~/Content/*.css");
+        public static MvcHtmlString ResourceGroup(this HtmlHelper html, string name, string path)
         {
+            return ResourceGroup(html, name, path, null, false);
+        }
+
+        // Glob recursive: html.ResourceGroup("~/Content/*.css");
+        public static MvcHtmlString ResourceGroup(this HtmlHelper html, string name, string path, bool recursive)
+        {
+            return ResourceGroup(html, name, path, null, recursive);
+        }
+
+        // Regex recursive: html.ResourceGroup("~/Content/*.css");
+        public static MvcHtmlString ResourceGroup(this HtmlHelper html, string name, string path, string regex)
+        {
+            return ResourceGroup(html, name, path, regex, false);
+        }
+
+        // Regex recursive: html.ResourceGroup("~/Content/*.css");
+        public static MvcHtmlString ResourceGroup(this HtmlHelper html, string name, string path, string regex, bool recursive)
+        {
+            var resources = GetResources(html);
+            var url = new UrlHelper(html.ViewContext.RequestContext);
+            var server = html.ViewContext.RequestContext.HttpContext.Server;
+
+            // Ensure that list exists.
+            if (!resources.Groups.Keys.Contains(name))
+            {
+                resources.Groups.Add(name, new List<string>());
+            }
+
+            FileInfo[] files = null;
+
+            if (regex != null)
+            {
+                // TODO: Implement
+            }
+            // Try to glob for files if it's not a regular expression
+            else
+            {
+                var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(path)));
+                files = di.GetFiles(Path.GetFileName(path), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+            }
+
+            foreach (var file in files)
+            {
+                resources.Groups[name].Add(MapPathReverse(html, file.FullName));
+            }
+
             return null;
         }
 
-        // TODO: Implement
-        public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive)
+        // Simple options: html.Resource("~/Content/Site.css", new ResourceOptions() { Bundle = false });
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, HTMLResourceOptions options)
         {
-            return null;
+            return Resource(html, value, null, false, options);
         }
 
-        // TODO: Implement
-        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive)
-        {
-            return null;
-        }
-
-        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex)
-        {
-            return null;
-        }
-
+        // Simple: html.Resource("~/Content/Site.css");
+        // Glob: html.Resource("~/Content/*.css");
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
         {
-            int depth = GetDepth(html);
-            //throw new Exception(layout);
+            return Resource(html, value, null, false, null);
+        }
+
+        // Glob recursive: html.Resource("~/Content/*.css", true);
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive)
+        {
+            return Resource(html, value, null, recursive, null);
+        }
+
+        // Glob recursive options: html.Resource("~/Content/*.css", true, new ResourceOptions() { Bundle = false });
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive, HTMLResourceOptions options)
+        {
+            return Resource(html, value, null, recursive, options);
+        }
+
+        // Regex: html.Resource("~/Content/", @"*\.css$");
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex)
+        {
+            return Resource(html, value, regex, false, null);
+        }
+
+        // Regex recursive: html.Resource("~/Content/", @"*\.css$", true);
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive)
+        {
+            return Resource(html, value, regex, recursive, null);
+        }
+
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive, HTMLResourceOptions options)
+        {
+            var resources = GetResources(html);
+
+            // TODO: Return cached copy here so we don't need to do more code parsing
+
+            // Set defaults
             if (ConfigurationManager.AppSettings["ScriptsFolder"] != null)
             {
                 scriptsFolder = ConfigurationManager.AppSettings["ScriptsFolder"];
@@ -102,26 +172,54 @@ namespace ResourceHelper
                 cssFolder = ConfigurationManager.AppSettings["StyleSheetFolder"];
             }
 
+            // Find out how deep we are in the page structure so we add the resources in the right order 
+            int depth = GetDepth(html);
+
+            // Get helper class to convert path's
             var url = new UrlHelper(html.ViewContext.RequestContext);
             var server = html.ViewContext.RequestContext.HttpContext.Server;
-            var resources = (HtmlResources)html.ViewData["Resources"];
-            if (resources == null)
-            {
-                resources = new HtmlResources();
-                html.ViewData["Resources"] = resources;
-            }
 
             // Make sure the paths exist
             Directory.CreateDirectory(server.MapPath(scriptsFolder));
             Directory.CreateDirectory(server.MapPath(cssFolder));
 
-            FileInfo info = new FileInfo(server.MapPath(value));
-            if (info.Exists)
-            {
-                // Find the path diffrence so we can fix up included resources in fx css
-                resources.PathOffset[value] = GetPathOffset(url.Content(value.Substring(0, value.Length - info.Name.Length)), url.Content(scriptsFolder));
+            FileInfo[] files = null;
 
-                if (value.EndsWith(".js"))
+            if (regex != null)
+            {
+                // TODO: Implement
+            }
+            // Try to glob for files if it's not a regular expression
+            else
+            {
+                var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(value)));
+                files = di.GetFiles(Path.GetFileName(value),  recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+            }
+
+            // Throw exception if we are in strict mode and nothing was found
+            if (files.Length == 0 && ((resources.Strict && resources.Strict != false) || resources.Strict == true))
+            {
+                throw new FileNotFoundException(String.Format("Could not find file {0}", value), value);
+            }
+
+            foreach (var info in files)
+            {
+                // Find the Relative URL path 
+                var relative_filename = MapPathReverse(html, info.FullName);
+
+                // Skip cache folders
+                if (relative_filename.StartsWith(scriptsFolder) || relative_filename.StartsWith(cssFolder))
+                {
+                    continue;
+                }
+
+                // Find the path diffrence so we can fix up included resources in fx css
+                resources.PathOffset[relative_filename] = GetPathOffset(url.Content(relative_filename.Substring(0, relative_filename.Length - info.Name.Length)), url.Content(scriptsFolder));
+
+                // Save options for later use
+                resources.Options[relative_filename] = options;
+
+                if (relative_filename.EndsWith(".js"))
                 {
                     // Ensure that list exists.
                     if (!resources.Scripts.Keys.Contains(depth))
@@ -129,7 +227,7 @@ namespace ResourceHelper
                         resources.Scripts.Add(depth, new List<string>());
                     }
 
-                    if (!resources.Scripts[depth].Contains(value))
+                    if (!resources.Scripts[depth].Contains(relative_filename))
                     {
                         // Note the latest date a file was changed.
                         if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
@@ -138,13 +236,13 @@ namespace ResourceHelper
                         }
 
                         // Minify the script file if necessary.
-                        if (resources.Minify)
+                        if ((resources.Minify && options.Minify != false) || options.Minify == true)
                         {
                             string origname = info.Name.Substring(0, info.Name.LastIndexOf('.'));
                             if (origname.EndsWith(".min"))
                             {
                                 // The resource is pre-minified. Skip.
-                                resources.Scripts[depth].Add(value);
+                                resources.Scripts[depth].Add(relative_filename);
                             }
                             else if (!resources.Debug && File.Exists(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
                             {
@@ -160,7 +258,7 @@ namespace ResourceHelper
                                 // TODO: Try to fix up relative paths if we move the script file to another location
                                 // Minify file.
                                 string filename = scriptsFolder + origname + ".min" + info.Extension;
-                                MinifyFile(server.MapPath(filename), server.MapPath(value));
+                                MinifyFile(server.MapPath(filename), server.MapPath(relative_filename));
                                 //File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
                                 resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
 
@@ -168,44 +266,41 @@ namespace ResourceHelper
                                 resources.Scripts[depth].Add(filename);
 
                                 // File changed named because we are using the mimified version 
-                                resources.PathOffset[filename] = resources.PathOffset[value];
+                                resources.PathOffset[filename] = resources.PathOffset[relative_filename];
                             }
                         }
                         else
                         {
-                            resources.Scripts[depth].Add(value);
+                            resources.Scripts[depth].Add(relative_filename);
                         }
                     }
                 }
-                else if (value.EndsWith(".css"))
+                else if (relative_filename.EndsWith(".css"))
                 {
                     // ENsure that list exists.
                     if (!resources.Stylesheets.Keys.Contains(depth))
                     {
                         resources.Stylesheets.Add(depth, new List<string>());
                     }
-                    if (!resources.Stylesheets[depth].Contains(value))
+                    if (!resources.Stylesheets[depth].Contains(relative_filename))
                     {
                         // Note the latest date a file was changed.
                         if (DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
+                        {
                             resources.LatestCSSFile = info.LastWriteTime;
-
-                        resources.Stylesheets[depth].Add(value);
+                        }
+                        
+                        resources.Stylesheets[depth].Add(relative_filename);
                     }
                 }
             }
-            else
-            {
-                if (resources.Strict)
-                {
-                    throw new FileNotFoundException(String.Format("Could not find file {0}", value), value);
-                }
-            }
+
             return null;
         }
 
         private static void MinifyFile(string newpath, string oldpath)
         {
+            // Try to write the file 5 times before giving up
             for (int i = 0; i < 5; i++)
             {
                 try
@@ -213,14 +308,15 @@ namespace ResourceHelper
                     File.WriteAllText(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
                     break;
                 }
-                catch (IOException ex)
+                catch (IOException)
                 {
                     Thread.Sleep(1000);
                 }
             }
         }
 
-        private static string GetPathOffset(string orgpath, string newpath) {
+        private static string GetPathOffset(string orgpath, string newpath)
+        {
             var uri_orginal = new Uri("http://somehost" + orgpath);
             var uri_new = new Uri("http://somehost" + newpath);
             return uri_new.MakeRelativeUri(uri_orginal).ToString();
@@ -245,7 +341,25 @@ namespace ResourceHelper
             }
         }
 
+        // TODO: Implement
         public static MvcHtmlString RenderResources(this HtmlHelper html)
+        {
+            return RenderResources(html, "all");
+        }
+
+        // TODO: Implement
+        public static MvcHtmlString RenderScriptResources(this HtmlHelper html)
+        {
+           return RenderResources(html, "scripts");
+        }
+
+        // TODO: Implement
+        public static MvcHtmlString RenderStyleSheetResources(this HtmlHelper html)
+        {
+            return RenderResources(html, "stylesheets");
+        }
+
+        public static MvcHtmlString RenderResources(this HtmlHelper html, string groupname)
         {
             if (ConfigurationManager.AppSettings["ScriptsFolder"] != null)
             {
@@ -291,7 +405,7 @@ namespace ResourceHelper
                 }
 
                 if (resources.Bundle)
-                {                  
+                {
                     if (_scripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
@@ -323,7 +437,8 @@ namespace ResourceHelper
                 }
             }
 
-            html.ViewData["Resources"] = new HtmlResources();
+            // Clear Resources
+            html.ViewData["Resources"] = null;
             return MvcHtmlString.Create(result);
         }
 
@@ -366,7 +481,7 @@ namespace ResourceHelper
                         }
                         break;
                     }
-                    catch (IOException ex)
+                    catch (IOException)
                     {
                         Thread.Sleep(1000);
                     }
@@ -386,7 +501,7 @@ namespace ResourceHelper
         {
             var data = File.ReadAllText(filename);
             data = css_comment.Replace(data, ""); // Remove comments
-           
+
             data = css_fixup.Replace(data, match =>
             {
                 // Fix url includes with the correct path offset
@@ -405,23 +520,41 @@ namespace ResourceHelper
                 }
                 // Follow @import statements and include them in the stream
                 else if (match.Groups[1].Value.StartsWith("@import"))
-                {                   
-                   string importedfile = Path.Combine(Path.GetDirectoryName(filename), match.Groups[2].Value);
-                   // Make sure we don't loop in the includes
-                   if (seen.Add(importedfile))
-                   {
-                       return "/*" + importedfile + "*/\n" + cssFixup(css_fixup, css_comment, basepath, importedfile, pathoffset, strict, seen);
-                   }
-                   else
-                   {
-                       return "";
-                   }
+                {
+                    string importedfile = Path.Combine(Path.GetDirectoryName(filename), match.Groups[2].Value);
+                    // Make sure we don't loop in the includes
+                    if (seen.Add(importedfile))
+                    {
+                        return "/*" + importedfile + "*/\n" + cssFixup(css_fixup, css_comment, basepath, importedfile, pathoffset, strict, seen);
+                    }
+                    else
+                    {
+                        return "";
+                    }
 
-                } else {
+                }
+                else
+                {
                     return match.Value;
                 }
             });
             return data;
+        }
+
+        private static string MapPathReverse(HtmlHelper html, string path)
+        {
+            return "~/" + path.Replace(html.ViewContext.RequestContext.HttpContext.Request.PhysicalApplicationPath, String.Empty).Replace('\\', '/');
+        }
+
+        private static HtmlResources GetResources(HtmlHelper html) {
+            // Store state in the ViewData //TODO: Implment some kind of IIS caching so we don't do this for every page load
+            var resources = (HtmlResources)html.ViewData["Resources"];
+            if (resources == null)
+            {
+                resources = new HtmlResources();
+                html.ViewData["Resources"] = resources;
+            }
+            return resources;
         }
     }
 }
