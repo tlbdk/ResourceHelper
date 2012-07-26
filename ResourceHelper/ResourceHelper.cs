@@ -342,6 +342,12 @@ namespace ResourceHelper
         }
 
         // TODO: Implement
+        public static List<string> RenderResourceList(this HtmlHelper html)
+        {
+            return null;
+        }
+
+        // TODO: Implement
         public static MvcHtmlString RenderResources(this HtmlHelper html)
         {
             return RenderResources(html, "all");

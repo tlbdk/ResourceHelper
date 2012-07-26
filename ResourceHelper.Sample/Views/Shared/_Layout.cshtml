@@ -4,12 +4,14 @@
     <meta charset="utf-8" />
     <title>@ViewBag.Title</title>
     @{
-        Html.Resource("~/Content/Site.css");        
+        Html.Resource("~/Content/Site.css");
         Html.Resource("~/Scripts/jquery-1.5.1.js");
         Html.Resource("~/Scripts/modernizr-1.7.js");
         Html.Resource("~/Content/themes/base/jquery.ui.all.css");
+
+        Html.ResourceGroup("widgetcss", "~/Content/Widget/*.css");        
     }
-    @Html.RenderResources()
+    @Html.RenderResources("stylesheets")
 </head>
 <body>
     <div class="page">
@@ -39,5 +41,6 @@
         <footer>
         </footer>
     </div>
+    @Html.RenderResources("scripts")
 </body>
 </html>
