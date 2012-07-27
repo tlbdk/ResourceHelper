@@ -35,6 +35,7 @@ namespace ResourceHelper
         public Dictionary<string, string> PathOffset;
         public Dictionary<string, HTMLResourceOptions> Options;
         public Dictionary<string, List<string>> Groups;
+        public Dictionary<string, string> GroupsLookup;
 
         public bool Bundle = false;
         public bool Minify = false;
@@ -53,6 +54,7 @@ namespace ResourceHelper
             PathOffset = new Dictionary<string, string>();
             Options = new Dictionary<string, HTMLResourceOptions>();
             Groups = new Dictionary<string, List<string>>();
+            GroupsLookup = new Dictionary<string, string>();
             bool.TryParse(ConfigurationManager.AppSettings["ResourceBundle"], out Bundle);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceMinify"], out Minify);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceDebug"], out Debug);
@@ -113,7 +115,16 @@ namespace ResourceHelper
 
             foreach (var file in files)
             {
-                resources.Groups[name].Add(MapPathReverse(html, file.FullName));
+                var aspurl = MapPathReverse(html, file.FullName);
+                if (!resources.GroupsLookup.ContainsKey(aspurl))
+                {
+                    resources.Groups[name].Add(aspurl);
+                    resources.GroupsLookup[aspurl] = name;
+                }
+                else
+                {
+                    throw new Exception("Can't add the same resource '" + aspurl + "' to two different groups: " + name + " and " + resources.GroupsLookup[aspurl]);
+                }
             }
 
             return null;
@@ -193,7 +204,8 @@ namespace ResourceHelper
             else
             {
                 var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(value)));
-                files = di.GetFiles(Path.GetFileName(value),  recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                //TODO: This does not work
+                files = di.GetFiles(Path.GetFileName(server.MapPath(value)), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
             }
 
             // Throw exception if we are in strict mode and nothing was found

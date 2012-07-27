@@ -31,6 +31,13 @@ namespace ResourceHelper.Tests
         }
 
 
+        [Test]
+        public void TestGroupAddDouble()
+        {
+            HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
+            //html.ResourceGroup("jqueryui", "~/Content/themes/base/*.css"); // jquery.ui bundle
+        }
+
         // TODO: Support Html.ResourceGroup("jquery", "~/Content/themes/base", @"^jquery\.ui.*\.css$") // This index all the resources in base that maches the regex and creates a bundle out of them
         //               Html.ResourceGroup("jquery", "~/Content/themes/base", @"^jquery\.ui.*\.css$", true) // Recurse into folder
         //               Html.Resource("~/Content/themes/base/jquery.ui.all.css") // Will make sure jquery.ui.all.css is first in the bundle
@@ -47,7 +54,6 @@ namespace ResourceHelper.Tests
 
             htmlstr = html.RenderResources().ToHtmlString();
             //StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);
-            
         }
     }
 }
