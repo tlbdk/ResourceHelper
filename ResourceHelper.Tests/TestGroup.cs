@@ -30,30 +30,76 @@ namespace ResourceHelper.Tests
             Directory.SetCurrentDirectory(WebRoot);      
         }
 
-
         [Test]
-        public void TestGroupAddDouble()
+        [Ignore("TODO: Needs support in Html.RenderResources and Html.Resource")]
+        public void TestGroupAddOverlapping()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            //html.ResourceGroup("jqueryui", "~/Content/themes/base/*.css"); // jquery.ui bundle
+            // Add two groups
+            html.ResourceGroup("jqueryui", "~/Content/themes/base/*.css"); // jquery.ui bundle
+            html.ResourceGroup("all", "~/Content/*.css", true); // jquery.ui bundle
+
+            // Make sure the groups get rendered by using at least one of the resources
+            html.Resource("~/Content/Test.css");
+            html.Resource("~/Content/themes/base/jquery.ui.dialog.css");
+
+            // Render JQueryUI resources
+            var htmlstr = html.RenderResources("jqueryui").ToHtmlString();
+            StringAssert.Contains("jquery.ui.all.css", htmlstr);
+            StringAssert.DoesNotContain("Site.css", htmlstr);
+
+            // Render JQueryUI resources
+            htmlstr = html.RenderResources("all").ToHtmlString();
+            StringAssert.Contains("Site.css", htmlstr);
+            StringAssert.DoesNotContain("jquery.ui.all.css", htmlstr);           
         }
 
         // TODO: Support Html.ResourceGroup("jquery", "~/Content/themes/base", @"^jquery\.ui.*\.css$") // This index all the resources in base that maches the regex and creates a bundle out of them
         //               Html.ResourceGroup("jquery", "~/Content/themes/base", @"^jquery\.ui.*\.css$", true) // Recurse into folder
         //               Html.Resource("~/Content/themes/base/jquery.ui.all.css") // Will make sure jquery.ui.all.css is first in the bundle
         [Test]
-        public void TestGroupCSS()
+        [Ignore("TODO: Needs support in Html.RenderResources and Html.Resource")]
+        public void TestGroupCSSBundle()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            html.ResourceGroup("jqueryui", "~/Content/themes/base/*.css"); // jquery.ui bundle
-            html.Resource("~/Content/themes/base/jquery.ui.core.css", new HTMLResourceOptions() { Bundle = true, Minify = false });
-            html.Resource("~/Content/Site.css", new HTMLResourceOptions() { Bundle = false, Minify = false });
-            //FIXME: Implement that RenderResources uses groups
-            var htmlstr = html.RenderResources("jqueryui").ToHtmlString();
-            //StringAssert.StartsWith("<link href=\"/Content/cache/jqueryui-bundle", htmlstr);
+            html.ResourceSettings(new HTMLResourceOptions() { Bundle = true });
 
-            htmlstr = html.RenderResources().ToHtmlString();
-            //StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);
+            // Add a group for jquery ui css files
+            html.ResourceGroup("jqueryui", "~/Content/themes/base/*.css"); // jquery.ui bundle
+
+            // Render one resource from the group and one from outside
+            html.Resource("~/Content/themes/base/jquery.ui.core.css");
+            html.Resource("~/Content/Site.css");
+
+            // Render resourcs and verify that we get two bundles
+            var htmlstr = html.RenderResources().ToHtmlString();
+            StringAssert.Contains("jqueryui-bundle", htmlstr);
+            StringAssert.Contains("all-bundle", htmlstr);
+        }
+
+        [Test]
+        [Ignore("TODO: Needs support in Html.RenderResources and Html.Resource")]
+        public void TestGroupCSSBundleExplicitRendering()
+        {
+            HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
+            html.ResourceSettings(new HTMLResourceOptions() { Bundle = true });
+            
+            // Add a group for jquery ui css files
+            html.ResourceGroup("jqueryui", "~/Content/themes/base/*.css"); // jquery.ui bundle
+            
+            // Render one resource from the group and one from outside
+            html.Resource("~/Content/themes/base/jquery.ui.core.css");
+            html.Resource("~/Content/Site.css");
+            
+            // Render resources for jquery and verify that we only bundle
+            var htmlstr = html.RenderResources("jquery").ToHtmlString();
+            StringAssert.Contains("jqueryui-bundle", htmlstr);
+            StringAssert.DoesNotContain("all-bundle", htmlstr);
+
+            // Render resources for the rest and verify that we only bundle
+            htmlstr = html.RenderResources("jquery").ToHtmlString();
+            StringAssert.Contains("all-bundle", htmlstr);
+            StringAssert.DoesNotContain("jqueryui-bundle", htmlstr);
         }
     }
 }

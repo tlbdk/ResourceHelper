@@ -172,12 +172,9 @@ namespace ResourceHelper
                 var aspurl = MapPathReverse(html, file.FullName);
                 if (!resources.GroupsLookup.ContainsKey(aspurl))
                 {
+                    // TODO: Ignore cache folders
                     resources.Groups[name].Add(aspurl);
                     resources.GroupsLookup[aspurl] = name;
-                }
-                else
-                {
-                    throw new Exception("Can't add the same resource '" + aspurl + "' to two different groups: " + name + " and " + resources.GroupsLookup[aspurl]);
                 }
             }
 

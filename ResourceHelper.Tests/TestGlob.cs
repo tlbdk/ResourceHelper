@@ -47,16 +47,5 @@ namespace ResourceHelper.Tests
             StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);
             StringAssert.Contains("/Content/themes/base/jquery.ui.theme.css", htmlstr);
         }
-        /*
-        [Test]
-        public void TestOptions()
-        {
-            HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
-            html.Resource("~/Content/Site.css", new ResourceOptions() { Bundle = false, Minify = false });
-            StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
-        }
-        */
-
     }
 }

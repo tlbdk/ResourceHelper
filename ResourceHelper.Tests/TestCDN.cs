@@ -27,7 +27,6 @@ namespace ResourceHelper.Tests
             // Set sample as root
             WebRoot = FakeUtils.GetWebRoot(TestContext.CurrentContext.TestDirectory);
             Directory.SetCurrentDirectory(WebRoot);      
-        }   
-
+        }
     }
 }
