@@ -1,4 +1,13 @@
 *.suo
 *.nupkg
-/ResourceHelper.Tests/bin
-/ResourceHelper.Tests/obj
+*.userprefs
+ResourceHelper/bin/
+ResourceHelper/obj/
+ResourceHelper/*.pidb
+/ResourceHelper.Tests/bin/
+/ResourceHelper.Tests/obj/
+/ResourceHelper.Tests/*.pidb
+/ResourceHelper.Tests/test-results/
+/ResourceHelper.Sample/bin/
+/ResourceHelper.Sample/obj/
+/ResourceHelper.Sample/*.pidb
