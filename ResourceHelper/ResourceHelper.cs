@@ -25,7 +25,10 @@ namespace ResourceHelper
         public bool? Debug;
         public bool? Strict;
         public int? Inline;
-        public string OutputPath;
+        public string CacheFolder;
+        public string ScriptFolder;
+        public string StyleSheetFolder;
+        public string ImageFolder;
     }
 
     public class HtmlResources
@@ -36,13 +39,15 @@ namespace ResourceHelper
         public Dictionary<string, HTMLResourceOptions> Options;
         public Dictionary<string, List<string>> Groups;
         public Dictionary<string, string> GroupsLookup;
-
         public bool Bundle = false;
         public bool Minify = false;
         public bool Debug = false;
         public bool Strict = false;
         public int Inline = 0;
-
+        public string CacheFolder = "~/Content/cache";
+        public string ScriptFolder;
+        public string StyleSheetFolder;
+        public string ImageFolder;
         public DateTime LatestScriptFile = DateTime.MinValue;
         public DateTime LatestCSSFile = DateTime.MinValue;
 
@@ -59,15 +64,64 @@ namespace ResourceHelper
             bool.TryParse(ConfigurationManager.AppSettings["ResourceMinify"], out Minify);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceDebug"], out Debug);
             bool.TryParse(ConfigurationManager.AppSettings["ResourceStrict"], out Strict);
-            int.TryParse(ConfigurationManager.AppSettings["ResourceInline"], out Inline);            
+            int.TryParse(ConfigurationManager.AppSettings["ResourceInline"], out Inline);
+            CacheFolder = ConfigurationManager.AppSettings["ResourceCacheFolder"] != null ? ConfigurationManager.AppSettings["CacheFolder"] : CacheFolder;
+            StyleSheetFolder = ConfigurationManager.AppSettings["ResourceStyleSheetFolder"] != null ? ConfigurationManager.AppSettings["StyleSheetFolder"] : CacheFolder;
+            ScriptFolder = ConfigurationManager.AppSettings["ResourceScriptsFolder"] != null ? ConfigurationManager.AppSettings["ScriptsFolder"] : CacheFolder;
+            ImageFolder = ConfigurationManager.AppSettings["ResourceImageFolder"] != null ? ConfigurationManager.AppSettings["ImageFolder"] : CacheFolder;
         }
     }
 
     public static class HtmlHelperExtensions
     {
-        private static string scriptsFolder = "~/Content/cache/";
-        private static string cssFolder = "~/Content/cache/";
+        // Set Default settings
+        public static MvcHtmlString ResourceSettings(this HtmlHelper html, HTMLResourceOptions options)
+        {
+            var resources = GetResources(html);
 
+            if (options.Bundle != null)
+            {
+                resources.Bundle = (bool)options.Bundle;
+            }
+            if (options.Debug != null)
+            {
+                resources.Debug = (bool)options.Debug;
+            }
+            if (options.Minify != null)
+            {
+                resources.Minify = (bool)options.Minify;
+            }
+            if (options.Strict != null)
+            {
+                resources.Strict = (bool)options.Strict;
+            }
+            if (options.Inline != null)
+            {
+                resources.Inline = (int)options.Inline;
+            }
+            if (options.CacheFolder != null)
+            {
+                resources.CacheFolder = options.CacheFolder;
+                resources.StyleSheetFolder = options.StyleSheetFolder;
+                resources.ScriptFolder = options.ScriptFolder;
+                resources.ImageFolder = options.ImageFolder;
+            }
+            if (options.StyleSheetFolder != null)
+            {
+                resources.StyleSheetFolder = options.StyleSheetFolder;
+            }
+            if (options.ScriptFolder != null)
+            {
+                resources.ScriptFolder = options.ScriptFolder;
+            }
+            if (options.ImageFolder != null)
+            {
+                resources.ImageFolder = options.ImageFolder;
+            }
+
+            // TODO: If debug print settings as commented out HTML
+            return null;
+        }
 
         // Simple/Glob: html.ResourceGroup("~/Content/*.css");
         public static MvcHtmlString ResourceGroup(this HtmlHelper html, string name, string path)
@@ -173,17 +227,7 @@ namespace ResourceHelper
 
             // TODO: Return cached copy here so we don't need to do more code parsing
 
-            // Set defaults
-            if (ConfigurationManager.AppSettings["ScriptsFolder"] != null)
-            {
-                scriptsFolder = ConfigurationManager.AppSettings["ScriptsFolder"];
-            }
-            if (ConfigurationManager.AppSettings["StyleSheetFolder"] != null)
-            {
-                cssFolder = ConfigurationManager.AppSettings["StyleSheetFolder"];
-            }
-
-            // Find out how deep we are in the page structure so we add the resources in the right order 
+            // Find out how deep we are in the page structure so we add the resources in the right order
             int depth = GetDepth(html);
 
             // Get helper class to convert path's
@@ -191,8 +235,9 @@ namespace ResourceHelper
             var server = html.ViewContext.RequestContext.HttpContext.Server;
 
             // Make sure the paths exist
-            Directory.CreateDirectory(server.MapPath(scriptsFolder));
-            Directory.CreateDirectory(server.MapPath(cssFolder));
+            Directory.CreateDirectory(server.MapPath(resources.ScriptFolder));
+            Directory.CreateDirectory(server.MapPath(resources.StyleSheetFolder));
+            Directory.CreateDirectory(server.MapPath(resources.ImageFolder));
 
             FileInfo[] files = null;
 
@@ -216,17 +261,17 @@ namespace ResourceHelper
 
             foreach (var info in files)
             {
-                // Find the Relative URL path 
+                // Find the Relative URL path
                 var relative_filename = MapPathReverse(html, info.FullName);
 
                 // Skip cache folders
-                if (relative_filename.StartsWith(scriptsFolder) || relative_filename.StartsWith(cssFolder))
+                if (relative_filename.StartsWith(resources.ScriptFolder) || relative_filename.StartsWith(resources.StyleSheetFolder) || relative_filename.StartsWith(resources.ImageFolder))
                 {
                     continue;
                 }
 
                 // Find the path diffrence so we can fix up included resources in fx css
-                resources.PathOffset[relative_filename] = GetPathOffset(url.Content(relative_filename.Substring(0, relative_filename.Length - info.Name.Length)), url.Content(scriptsFolder));
+                resources.PathOffset[relative_filename] = GetPathOffset(url.Content(relative_filename.Substring(0, relative_filename.Length - info.Name.Length)), url.Content(resources.ScriptFolder));
 
                 // Save options for later use
                 resources.Options[relative_filename] = options;
@@ -256,30 +301,30 @@ namespace ResourceHelper
                                 // The resource is pre-minified. Skip.
                                 resources.Scripts[depth].Add(relative_filename);
                             }
-                            else if (!resources.Debug && File.Exists(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
-                            {
-                                if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
+                            else if (!resources.Debug && File.Exists(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
                                 {
-                                    resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(scriptsFolder + origname + ".min" + info.Extension));
+                                    if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
+                                    {
+                                        resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension));
+                                    }
+                                    // We have already minified the file. Skip.
+                                    resources.Scripts[depth].Add(resources.ScriptFolder + origname + ".min" + info.Extension);
                                 }
-                                // We have already minified the file. Skip.
-                                resources.Scripts[depth].Add(scriptsFolder + origname + ".min" + info.Extension);
-                            }
-                            else
-                            {
-                                // TODO: Try to fix up relative paths if we move the script file to another location
-                                // Minify file.
-                                string filename = scriptsFolder + origname + ".min" + info.Extension;
-                                MinifyFile(server.MapPath(filename), server.MapPath(relative_filename));
-                                //File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
-                                resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
+                                else
+                                {
+                                    // TODO: Try to fix up relative paths if we move the script file to another location
+                                    // Minify file.
+                                    string filename = resources.ScriptFolder + origname + ".min" + info.Extension;
+                                    MinifyFile(server.MapPath(filename), server.MapPath(relative_filename));
+                                    //File.WriteAllText(server.MapPath(filename), Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(value))));
+                                    resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
 
-                                // Insert the path to the minified file.
-                                resources.Scripts[depth].Add(filename);
+                                    // Insert the path to the minified file.
+                                    resources.Scripts[depth].Add(filename);
 
-                                // File changed named because we are using the mimified version 
-                                resources.PathOffset[filename] = resources.PathOffset[relative_filename];
-                            }
+                                    // File changed named because we are using the mimified version
+                                    resources.PathOffset[filename] = resources.PathOffset[relative_filename];
+                                }
                         }
                         else
                         {
@@ -288,23 +333,23 @@ namespace ResourceHelper
                     }
                 }
                 else if (relative_filename.EndsWith(".css"))
-                {
-                    // ENsure that list exists.
-                    if (!resources.Stylesheets.Keys.Contains(depth))
                     {
-                        resources.Stylesheets.Add(depth, new List<string>());
-                    }
-                    if (!resources.Stylesheets[depth].Contains(relative_filename))
-                    {
-                        // Note the latest date a file was changed.
-                        if (DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
+                        // ENsure that list exists.
+                        if (!resources.Stylesheets.Keys.Contains(depth))
                         {
-                            resources.LatestCSSFile = info.LastWriteTime;
+                            resources.Stylesheets.Add(depth, new List<string>());
                         }
-                        
-                        resources.Stylesheets[depth].Add(relative_filename);
+                        if (!resources.Stylesheets[depth].Contains(relative_filename))
+                        {
+                            // Note the latest date a file was changed.
+                            if (DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
+                            {
+                                resources.LatestCSSFile = info.LastWriteTime;
+                            }
+
+                            resources.Stylesheets[depth].Add(relative_filename);
+                        }
                     }
-                }
             }
 
             return null;
@@ -343,14 +388,14 @@ namespace ResourceHelper
             }
             // Handle aspx views.
             else if (html.ViewDataContainer is ViewPage)
-            {
-                return 0;
-            }
-            else
-            {
-                // Return 0 if we don't know the viewengine
-                return 0;
-            }
+                {
+                    return 0;
+                }
+                else
+                {
+                    // Return 0 if we don't know the viewengine
+                    return 0;
+                }
         }
 
         // TODO: Implement
@@ -368,7 +413,7 @@ namespace ResourceHelper
         // TODO: Implement
         public static MvcHtmlString RenderScriptResources(this HtmlHelper html)
         {
-           return RenderResources(html, "scripts");
+            return RenderResources(html, "scripts");
         }
 
         // TODO: Implement
@@ -379,15 +424,6 @@ namespace ResourceHelper
 
         public static MvcHtmlString RenderResources(this HtmlHelper html, string groupname)
         {
-            if (ConfigurationManager.AppSettings["ScriptsFolder"] != null)
-            {
-                scriptsFolder = ConfigurationManager.AppSettings["ScriptsFolder"];
-            }
-            if (ConfigurationManager.AppSettings["CSSFolder"] != null)
-            {
-                cssFolder = ConfigurationManager.AppSettings["CSSFolder"];
-            }
-
             var url = new UrlHelper(html.ViewContext.RequestContext);
             var server = html.ViewContext.RequestContext.HttpContext.Server;
             var resources = (HtmlResources)html.ViewData["Resources"];
@@ -427,7 +463,7 @@ namespace ResourceHelper
                     if (_scripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string scriptPath = scriptsFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".bundle.js";
+                        string scriptPath = resources.ScriptFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + ".bundle.js";
                         BundleFiles(server, resources.LatestScriptFile, _scripts, resources.PathOffset, scriptPath, resources.Strict);
                         result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(scriptPath))) + "\" type=\"text/javascript\"></script>\n";
                     }
@@ -435,7 +471,7 @@ namespace ResourceHelper
                     if (_styles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string cssPath = cssFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".bundle.css";
+                        string cssPath = resources.StyleSheetFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + ".bundle.css";
                         BundleFiles(server, resources.LatestCSSFile, _styles, resources.PathOffset, cssPath, resources.Strict);
                         result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(cssPath))) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
@@ -492,7 +528,8 @@ namespace ResourceHelper
                                     }
                                     catch
                                     {
-                                        if (strict) throw;
+                                        if (strict)
+                                            throw;
                                     }
                                 }
                             }
@@ -538,23 +575,23 @@ namespace ResourceHelper
                 }
                 // Follow @import statements and include them in the stream
                 else if (match.Groups[1].Value.StartsWith("@import"))
-                {
-                    string importedfile = Path.Combine(Path.GetDirectoryName(filename), match.Groups[2].Value);
-                    // Make sure we don't loop in the includes
-                    if (seen.Add(importedfile))
                     {
-                        return "/*" + importedfile + "*/\n" + cssFixup(css_fixup, css_comment, basepath, importedfile, pathoffset, strict, seen);
+                        string importedfile = Path.Combine(Path.GetDirectoryName(filename), match.Groups[2].Value);
+                        // Make sure we don't loop in the includes
+                        if (seen.Add(importedfile))
+                        {
+                            return "/*" + importedfile + "*/\n" + cssFixup(css_fixup, css_comment, basepath, importedfile, pathoffset, strict, seen);
+                        }
+                        else
+                        {
+                            return "";
+                        }
+
                     }
                     else
                     {
-                        return "";
+                        return match.Value;
                     }
-
-                }
-                else
-                {
-                    return match.Value;
-                }
             });
             return data;
         }
@@ -564,7 +601,8 @@ namespace ResourceHelper
             return "~/" + path.Replace(html.ViewContext.RequestContext.HttpContext.Request.PhysicalApplicationPath, String.Empty).Replace('\\', '/');
         }
 
-        private static HtmlResources GetResources(HtmlHelper html) {
+        private static HtmlResources GetResources(HtmlHelper html)
+        {
             // Store state in the ViewData //TODO: Implment some kind of IIS caching so we don't do this for every page load
             var resources = (HtmlResources)html.ViewData["Resources"];
             if (resources == null)
