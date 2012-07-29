@@ -194,13 +194,13 @@ namespace ResourceHelper
         // Glob: html.Resource("~/Content/*.css");
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
         {
-            return Resource(html, value, null, false, null);
+            return Resource(html, value, null, false, new HTMLResourceOptions());
         }
 
         // Glob recursive: html.Resource("~/Content/*.css", true);
         public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive)
         {
-            return Resource(html, value, null, recursive, null);
+            return Resource(html, value, null, recursive, new HTMLResourceOptions());
         }
 
         // Glob recursive options: html.Resource("~/Content/*.css", true, new ResourceOptions() { Bundle = false });
@@ -212,13 +212,13 @@ namespace ResourceHelper
         // Regex: html.Resource("~/Content/", @"*\.css$");
         public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex)
         {
-            return Resource(html, value, regex, false, null);
+            return Resource(html, value, regex, false, new HTMLResourceOptions());
         }
 
         // Regex recursive: html.Resource("~/Content/", @"*\.css$", true);
         public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive)
         {
-            return Resource(html, value, regex, recursive, null);
+            return Resource(html, value, regex, recursive, new HTMLResourceOptions());
         }
 
         public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive, HTMLResourceOptions options)

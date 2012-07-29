@@ -32,7 +32,6 @@ namespace ResourceHelper.Tests
         public void TestSimpleGlob()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
             html.Resource("~/Content/*.css"); // Use Directory.GetFiles("*.exe")
             var htmlstr = html.RenderResources().ToHtmlString();
             StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);
@@ -43,7 +42,6 @@ namespace ResourceHelper.Tests
         public void TestGlobRecursive()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
             html.Resource("~/Content/*.css", true);
             var htmlstr = html.RenderResources().ToHtmlString();
             StringAssert.StartsWith("<link href=\"/Content/Site.css", htmlstr);

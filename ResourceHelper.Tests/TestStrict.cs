@@ -29,6 +29,7 @@ namespace ResourceHelper.Tests
         public void TestStrictFileNotFound()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
+            html.ResourceSettings(new HTMLResourceOptions(){ Strict = true });
             try
             {
                 html.Resource("~/Content/doesnotexists");

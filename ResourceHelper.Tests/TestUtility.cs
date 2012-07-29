@@ -29,8 +29,8 @@ namespace ResourceHelper.Tests
         public void TestUtilityLink()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            html.Resource("~/Script/modernizr-1.7.js");
-            html.Resource("~/Script/jquery.validate.js");
+            html.Resource("~/Scripts/modernizr-1.7.js");
+            html.Resource("~/Scripts/jquery.validate.js");
             var list = html.RenderResourceList(); // Returns a list of urls that will be rendered in the next call to RenderResources()
             html.RenderResources();
         }
