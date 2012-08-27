@@ -34,7 +34,6 @@ namespace ResourceHelper.Tests
         public void TestNoBundleNoMinify()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
             html.Resource("~/Content/Site.css", new ResourceOptions() { Bundle = false, Minify = false });
             StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
         }

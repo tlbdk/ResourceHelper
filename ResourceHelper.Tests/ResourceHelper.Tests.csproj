@@ -52,6 +52,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TestCaching.cs" />
+    <Compile Include="TestImg.cs" />
     <Compile Include="TestBundle.cs" />
     <Compile Include="TestUtility.cs" />
     <Compile Include="TestCDN.cs" />

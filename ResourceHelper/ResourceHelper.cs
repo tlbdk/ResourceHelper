@@ -32,6 +32,7 @@ namespace ResourceHelper
         // Utility stuff
         public int? BundleTimeout;
         public int? MimifyTimeout;
+        public int? ContextCacheLifetime;
     }
 
     public class HtmlResources
@@ -46,6 +47,7 @@ namespace ResourceHelper
         public HashSet<string> GroupsUsed;
         public int BundleTimeout = 5000;
         public int MimifyTimeout = 5000;
+        public int ContextCacheLifetime = 0; // 
         public bool Bundle = false;
         public bool Minify = false;
         public bool Debug = false;
@@ -134,6 +136,10 @@ namespace ResourceHelper
             if (options.MimifyTimeout != null)
             {
                 resources.MimifyTimeout = (int)options.MimifyTimeout;
+            }
+            if (options.ContextCacheLifetime != null)
+            {
+                resources.ContextCacheLifetime = (int)options.ContextCacheLifetime;
             }
 
             // TODO: If debug print settings as commented out HTML
@@ -387,6 +393,13 @@ namespace ResourceHelper
 
             return null;
         }
+
+        // TODO: Implement
+        public static MvcHtmlString Image(this HtmlHelper html, string file)
+        {
+            return null;
+        }
+
 
         private static void MinifyFile(string newpath, string oldpath, int timeout)
         {
