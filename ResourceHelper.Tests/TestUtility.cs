@@ -34,7 +34,6 @@ namespace ResourceHelper.Tests
             html.Resource("~/Scripts/jquery.validate.js");
             var list = html.RenderResourceList(); // Returns a list of urls that will be rendered in the next call to RenderResources()
             Assert.That( new List<string>() { "/Scripts/modernizr-1.7.js", "Scripts/jquery.validate.js"}, Is.EquivalentTo( list ) );
-
             html.RenderResources();
         }
     }

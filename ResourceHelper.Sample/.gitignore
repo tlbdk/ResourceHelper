@@ -1,2 +1,3 @@
-
+Content/cache/*.css
+Content/cache/*.js
 *.user

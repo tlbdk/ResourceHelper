@@ -10,9 +10,6 @@ using System.Web.Routing;
 using System.IO;
 using System.Configuration;
 
-// TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$") // Regex pattern
-// TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$", true) // Regex pattern with recurse
-
 namespace ResourceHelper.Tests
 {
     [TestFixture]
@@ -28,24 +25,24 @@ namespace ResourceHelper.Tests
             Directory.SetCurrentDirectory(WebRoot); 
         }
 
-        /*
+        // TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$") // Regex pattern
         [Test]
-        public void TestRegex()
+        [Ignore("TODO: Implement regex support in Resource()")]
+        public void TestRegexSimple()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
             html.Resource("~/Content", @".*\.css$");
             StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
         }
 
+        // TODO: Support Html.Resource("~/Content/themes/base", "^.*\.css$", true) // Regex pattern with recurse
         [Test]
-        public void TestRegexRecursive(WebRoot)
+        [Ignore("TODO: Implement regex support in Resource()")]
+        public void TestRegexRecursive()
         {
-            HtmlHelper html = FakeUtils.CreateHtmlHelper();
-            ConfigurationManager.AppSettings["ResourceBundle"] = "false";
+            HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
             html.Resource("~/Content", @".*\.css$", true);
             StringAssert.StartsWith("<link href=\"/Content/Site.css", html.RenderResources().ToHtmlString());
         }
-        */
     }
 }

@@ -52,6 +52,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TestBundle.cs" />
     <Compile Include="TestUtility.cs" />
     <Compile Include="TestCDN.cs" />
     <Compile Include="TestGroup.cs" />

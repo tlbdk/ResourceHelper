@@ -16,19 +16,21 @@ namespace ResourceHelper.Tests
     {
         public static HtmlHelper CreateHtmlHelper(string WebRoot)
         {
-            // Cleanup up cache directoy
-            string CacheDir = WebRoot + @"Contant\Cache";
-            if (Directory.Exists(CacheDir))
-            {
-                Directory.Delete(CacheDir, true);
-            }
-            Directory.CreateDirectory(CacheDir);
-
             // Create some mock objects to create a context
             ViewContext viewContext = new ViewContext();
             viewContext.HttpContext = new FakeHttpContext(WebRoot);
 
             return new HtmlHelper(viewContext, new FakeViewDataContainer());
+        }
+
+        public static void CleanupCache(string WebRoot) {
+            // Cleanup up cache directoy
+            string CacheDir = WebRoot + @"Content\Cache";
+            if (Directory.Exists(CacheDir))
+            {
+                Directory.Delete(CacheDir, true);
+            }
+            Directory.CreateDirectory(CacheDir);
         }
 
         public static bool IsRunningOnMono ()

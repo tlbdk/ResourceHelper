@@ -31,7 +31,6 @@ namespace ResourceHelper.Tests
         }
 
         [Test]
-        [Ignore("TODO: Needs support in Html.RenderResources and Html.Resource")]
         public void TestGroupAddOverlapping()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
@@ -47,9 +46,11 @@ namespace ResourceHelper.Tests
             var htmlstr = html.RenderResources("jqueryui").ToHtmlString();
             StringAssert.Contains("jquery.ui.all.css", htmlstr);
             StringAssert.DoesNotContain("Site.css", htmlstr);
+            StringAssert.DoesNotContain("Test.css", htmlstr);
 
             // Render JQueryUI resources
             htmlstr = html.RenderResources("all").ToHtmlString();
+            StringAssert.Contains("Test.css", htmlstr);
             StringAssert.Contains("Site.css", htmlstr);
             StringAssert.DoesNotContain("jquery.ui.all.css", htmlstr);           
         }
@@ -58,7 +59,6 @@ namespace ResourceHelper.Tests
         //               Html.ResourceGroup("jquery", "~/Content/themes/base", @"^jquery\.ui.*\.css$", true) // Recurse into folder
         //               Html.Resource("~/Content/themes/base/jquery.ui.all.css") // Will make sure jquery.ui.all.css is first in the bundle
         [Test]
-        [Ignore("TODO: Needs support in Html.RenderResources and Html.Resource")]
         public void TestGroupCSSBundle()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
@@ -74,11 +74,11 @@ namespace ResourceHelper.Tests
             // Render resourcs and verify that we get two bundles
             var htmlstr = html.RenderResources().ToHtmlString();
             StringAssert.Contains("jqueryui-bundle", htmlstr);
+            
             StringAssert.Contains("all-bundle", htmlstr);
         }
 
         [Test]
-        [Ignore("TODO: Needs support in Html.RenderResources and Html.Resource")]
         public void TestGroupCSSBundleExplicitRendering()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
@@ -92,14 +92,31 @@ namespace ResourceHelper.Tests
             html.Resource("~/Content/Site.css");
             
             // Render resources for jquery and verify that we only bundle
-            var htmlstr = html.RenderResources("jquery").ToHtmlString();
+            var htmlstr = html.RenderResources("jqueryui").ToHtmlString();
             StringAssert.Contains("jqueryui-bundle", htmlstr);
             StringAssert.DoesNotContain("all-bundle", htmlstr);
 
             // Render resources for the rest and verify that we only bundle
-            htmlstr = html.RenderResources("jquery").ToHtmlString();
+            htmlstr = html.RenderResources("all").ToHtmlString();
             StringAssert.Contains("all-bundle", htmlstr);
             StringAssert.DoesNotContain("jqueryui-bundle", htmlstr);
         }
+
+        [Test]
+        public void TestGroupRenderingNonExitingGroup()
+        {
+            HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
+            html.ResourceSettings(new HTMLResourceOptions(){ Strict = true });
+            try
+            {
+                var htmlstr = html.RenderResources("thisdoesnotexist").ToHtmlString();
+                Assert.Fail("Expected an exception, but none was thrown");
+            }
+            catch (Exception ex)
+            {
+                Assert.AreEqual("Can not find resource group thisdoesnotexist", ex.Message);
+            }
+        }
+
     }
 }
