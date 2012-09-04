@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>ResourceHelper</id>
+    <version>1.0.5</version>
+    <authors>Troes Liebe Bentsen, Peter Toft Jølving</authors>
+    <owners>Troels Liebe Bentsen, Peter Toft Jølving</owners>
+    <licenseUrl>http://www.opensource.org/licenses/mit-license.php</licenseUrl>
+    <projectUrl>https://github.com/tlbdk/ResourceHelper</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Resource html helper that makes it easy to bundle and minify JavaScript and CSS for MVC 3</description>
+    <releaseNotes>Fixed bug where the rendering crashes if another process is writing to cache files.
+    Added support for selectively disabling minification and bundling based on session variable.
+    Added module to set session for selective disabling of features based on request parameters.</releaseNotes>
+    <copyright>Copyright 2012</copyright>
+    <dependencies>
+      <dependency id="YUICompressor.NET" version="1.7.1.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\Release\ResourceHelper.dll" target="lib\40" />
+    <file src="web.config.transform" target="content" />
+    <file src="Views.web.config.transform" target="content\Views\web.config.transform" />
+    <file src="cache.txt" target="content\Content\cache" />
+  </files>
+</package>

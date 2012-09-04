@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <add key="ResourceBundle" value="false"/>
+    <add key="ResourceMinify" value="false"/>
+    <add key="ResourceStrict" value="true"/>
+    <add key="ResourceDebug" value="false"/>
+    <add key="ScriptsFolder" value="~/Content/cache/"/>
+    <add key="StyleSheetFolder" value="~/Content/cache/"/>
+  </appSettings>
+</configuration>
