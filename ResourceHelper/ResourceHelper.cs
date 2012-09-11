@@ -200,6 +200,16 @@ namespace ResourceHelper
                 if (!resources.GroupsLookup.ContainsKey(aspurl))
                 {
                     if (!InCacheFolder(resources, file.FullName)) {
+                        //if resource already in "all", add to group and make group used
+                        var allFiles = resources.Stylesheets.Union(resources.Scripts);
+                        var depth = allFiles.FirstOrDefault(l => l.Value.Contains(aspurl));
+
+                        if(!depth.Equals(default(KeyValuePair<int, List<string>>)))
+                        {
+                            depth.Value.Remove(aspurl);
+                            if(!resources.GroupsUsed.Contains(name)) resources.GroupsUsed.Add(name);
+                        }
+
                         resources.Groups[name].Add(aspurl);
                         resources.GroupsLookup[aspurl] = name;
                     }
@@ -459,8 +469,10 @@ namespace ResourceHelper
         public static MvcHtmlString RenderResources(this HtmlHelper html)
         {
             string result = "";
+
+            result += RenderResources(html, "all").ToHtmlString();
             
-            var resources = (HtmlResources)html.ViewData["Resources"];
+            var resources = GetResources(html);
             if (resources != null)
             {
                 // Render all groups we used
@@ -469,7 +481,6 @@ namespace ResourceHelper
                     result += RenderResources(html, groupname).ToHtmlString();
                 }
             }
-            result += RenderResources(html, "all").ToHtmlString();
 
             return MvcHtmlString.Create(result);
         }
@@ -490,7 +501,7 @@ namespace ResourceHelper
         {
             var url = new UrlHelper(html.ViewContext.RequestContext);
             var server = html.ViewContext.RequestContext.HttpContext.Server;
-            var resources = (HtmlResources)html.ViewData["Resources"];
+            var resources = GetResources(html);
             string result = "";
 
             if (resources != null)
@@ -730,11 +741,11 @@ namespace ResourceHelper
         private static HtmlResources GetResources(HtmlHelper html)
         {
             // Store state in the ViewData //TODO: Implment some kind of IIS caching so we don't do this for every page load
-            var resources = (HtmlResources)html.ViewData["Resources"];
+            var resources = (HtmlResources)html.ViewContext.HttpContext.Cache["Resources"];
             if (resources == null)
             {
                 resources = new HtmlResources();
-                html.ViewData["Resources"] = resources;
+                html.ViewContext.HttpContext.Cache["Resources"] = resources;
             }
             return resources;
         }
