@@ -347,44 +347,7 @@ namespace ResourceHelper
                         {
                             resources.LatestScriptFile = info.LastWriteTime;
                         }
-
-                        // Minify the script file if necessary.
-                        if ((resources.Minify && options.Minify != false) || options.Minify == true)
-                        {
-                            string origname = info.Name.Substring(0, info.Name.LastIndexOf('.'));
-                            if (origname.EndsWith(".min"))
-                            {
-                                // The resource is pre-minified. Skip.
-                                resources.Scripts[depth].Add(relative_filename);
-                            }
-                            else if (!resources.Debug && File.Exists(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
-                                {
-                                    if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
-                                    {
-                                        resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension));
-                                    }
-                                    // We have already minified the file. Skip.
-                                    resources.Scripts[depth].Add(resources.ScriptFolder + origname + ".min" + info.Extension);
-                                }
-                                else
-                                {
-                                    // TODO: Try to fix up relative paths if we move the script file to another location
-                                    // Minify file.
-                                    string filename = resources.ScriptFolder + origname + ".min" + info.Extension;
-                                    MinifyFile(server.MapPath(filename), server.MapPath(relative_filename), resources.MimifyTimeout);
-                                    resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
-
-                                    // Insert the path to the minified file.
-                                    resources.Scripts[depth].Add(filename);
-
-                                    // File changed named because we are using the mimified version
-                                    resources.PathOffset[filename] = resources.PathOffset[relative_filename];
-                                }
-                        }
-                        else
-                        {
-                            resources.Scripts[depth].Add(relative_filename);
-                        }
+                        resources.Scripts[depth].Add(relative_filename);
                     }
                 }
                 else if (relative_filename.EndsWith(".css"))
@@ -583,6 +546,41 @@ namespace ResourceHelper
                 {
                     resources.LatestScriptFile = DateTime.Now;
                     resources.LatestCSSFile = DateTime.Now;
+                }
+
+                if (resources.Minify)
+                {
+                    var _script_min = new List<string>();
+                    foreach (var script in _scripts)
+                    {
+                        int start = (script.LastIndexOf('/') + 1);
+                        string origname = script.Substring(start, (script.LastIndexOf('.') - start));
+                        FileInfo info = new FileInfo(script);
+                        string newpath = resources.ScriptFolder + origname + ".min" + info.Extension;
+
+                        // The resource is pre-minified. Skip.
+                        if (origname.EndsWith(".min"))
+                        {
+                            _script_min.Add(script);
+                            continue;
+                        }
+                        if (!resources.Debug && File.Exists(server.MapPath(newpath)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(newpath)), info.LastWriteTime) >= 0)
+                        {
+                            if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
+                            {
+                                resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
+                            }
+                            _script_min.Add(newpath);
+                            continue;
+                        }
+
+                        // Minify
+                        MinifyFile(server.MapPath(newpath), server.MapPath(script), resources.MimifyTimeout);
+                        resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
+                        resources.PathOffset[newpath] = resources.PathOffset[script];
+                        _script_min.Add(newpath);
+                    }
+                    _scripts = _script_min;
                 }
 
                 if (resources.Bundle)
