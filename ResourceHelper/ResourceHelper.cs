@@ -739,11 +739,12 @@ namespace ResourceHelper
         private static HtmlResources GetResources(HtmlHelper html)
         {
             // Store state in the ViewData //TODO: Implment some kind of IIS caching so we don't do this for every page load
-            var resources = (HtmlResources) html.ViewData["Resources"];
+            var resources = (HtmlResources)html.ViewContext.HttpContext.Items["Resources"];
+
             if (resources == null)
             {
                 resources = new HtmlResources();
-                html.ViewData["Resources"] = resources;
+                html.ViewContext.HttpContext.Items["Resources"] = resources;
             }
             return resources;
         }
