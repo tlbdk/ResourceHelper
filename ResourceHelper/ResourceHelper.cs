@@ -379,15 +379,17 @@ namespace ResourceHelper
             return null;
         }
 
-
-        private static void MinifyFile(string newpath, string oldpath, int timeout)
+        private static void MinifyFile(string newpath, string oldpath, int timeout, bool isScript = true)
         {
             // Try to write the file 5 times before giving up
             for (int i = 0; i < 5; i++)
             {
                 try
                 {
-                    WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+                    if(isScript)
+                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+                    else
+                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.CssCompressor.Compress(File.ReadAllText(oldpath)));
                     break;
                 }
                 catch (IOException)
@@ -550,37 +552,55 @@ namespace ResourceHelper
 
                 if (resources.Minify)
                 {
+                    var _styles_min = new List<string>();
                     var _script_min = new List<string>();
-                    foreach (var script in _scripts)
+                    foreach (var file in _scripts.Union(_styles))
                     {
-                        int start = (script.LastIndexOf('/') + 1);
-                        string origname = script.Substring(start, (script.LastIndexOf('.') - start));
-                        FileInfo info = new FileInfo(script);
+                        List<string> list_min;
+                        int start = (file.LastIndexOf('/') + 1);
+                        string origname = file.Substring(start, (file.LastIndexOf('.') - start));
+                        FileInfo info = new FileInfo(file);
                         string newpath = resources.ScriptFolder + origname + ".min" + info.Extension;
+                        bool isScript = info.Extension == ".js";
+
+                        if (isScript)    
+                            list_min = _script_min;
+                        else                            
+                            list_min = _styles_min;
 
                         // The resource is pre-minified. Skip.
                         if (origname.EndsWith(".min"))
                         {
-                            _script_min.Add(script);
+                            list_min.Add(file);
                             continue;
                         }
                         if (!resources.Debug && File.Exists(server.MapPath(newpath)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(newpath)), info.LastWriteTime) >= 0)
                         {
-                            if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
+                            if (isScript && DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
                             {
                                 resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
                             }
-                            _script_min.Add(newpath);
+                            else if (!isScript && DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
+                            {
+                                resources.LatestCSSFile = File.GetLastWriteTime(server.MapPath(newpath));
+                            }
+                            list_min.Add(newpath);
                             continue;
                         }
 
                         // Minify
-                        MinifyFile(server.MapPath(newpath), server.MapPath(script), resources.MimifyTimeout);
-                        resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
-                        resources.PathOffset[newpath] = resources.PathOffset[script];
-                        _script_min.Add(newpath);
+                        MinifyFile(server.MapPath(newpath), server.MapPath(file), resources.MimifyTimeout, isScript);
+
+                        if (isScript)
+                            resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
+                        else
+                            resources.LatestCSSFile = File.GetLastWriteTime(server.MapPath(newpath));
+
+                        resources.PathOffset[newpath] = resources.PathOffset[file];
+                        list_min.Add(newpath);
                     }
                     _scripts = _script_min;
+                    _styles = _styles_min;
                 }
 
                 if (resources.Bundle)
