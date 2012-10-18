@@ -584,6 +584,8 @@ namespace ResourceHelper
                             {
                                 resources.LatestCSSFile = File.GetLastWriteTime(server.MapPath(newpath));
                             }
+                            resources.PathOffset[newpath] = resources.PathOffset[file];
+                            resources.Options[newpath] = resources.Options[file];
                             list_min.Add(newpath);
                             continue;
                         }
@@ -597,47 +599,51 @@ namespace ResourceHelper
                             resources.LatestCSSFile = File.GetLastWriteTime(server.MapPath(newpath));
 
                         resources.PathOffset[newpath] = resources.PathOffset[file];
+                        resources.Options[newpath] = resources.Options[file];
                         list_min.Add(newpath);
                     }
                     _scripts = _script_min;
                     _styles = _styles_min;
                 }
 
+                // If bundle, bundle and add single script/style tags
                 if (resources.Bundle)
                 {
-                    if (_scripts.Count > 0)
+                    List<string> bScripts = _scripts.Where(s => resources.Options[s].Bundle != false).ToList();
+                    _scripts = _scripts.Except(bScripts).ToList();
+                    List<string> bStyles = _styles.Where(s => resources.Options[s].Bundle != false).ToList();
+                    _styles = _styles.Except(bStyles).ToList();
+
+                    if (bScripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string scriptPath = resources.ScriptFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.js";
-                        BundleFiles(server, resources.LatestScriptFile, _scripts, resources.PathOffset, scriptPath, resources.Strict, resources.BundleTimeout);
+                        string scriptPath = resources.ScriptFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", bScripts)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.js";
+                        BundleFiles(server, resources.LatestScriptFile, bScripts, resources.PathOffset, scriptPath, resources.Strict, resources.BundleTimeout);
                         result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(scriptPath))) + "\" type=\"text/javascript\"></script>\n";
                     }
 
-                    if (_styles.Count > 0)
+                    if (bStyles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string cssPath = resources.StyleSheetFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.css";
-                        BundleFiles(server, resources.LatestCSSFile, _styles, resources.PathOffset, cssPath, resources.Strict, resources.BundleTimeout);
+                        string cssPath = resources.StyleSheetFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", bStyles)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.css";
+                        BundleFiles(server, resources.LatestCSSFile, bStyles, resources.PathOffset, cssPath, resources.Strict, resources.BundleTimeout);
                         result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(cssPath))) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                 }
-                else
+
+                // Render script/style tags
+                foreach (string resource in _scripts)
                 {
-                    foreach (string resource in _styles)
-                    {
-                        DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
-                        result += "<link href=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
-                    }
-                    foreach (string resource in _scripts)
-                    {
-                        DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
-                        result += "<script src=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" type=\"text/javascript\"></script>\n";
-                    }
+                    DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
+                    result += "<script src=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" type=\"text/javascript\"></script>\n";
+                }
+                foreach (string resource in _styles)
+                {
+                    DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
+                    result += "<link href=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                 }
             }
 
-            // Clear Resources
-            //html.ViewData["Resources"] = null;
             return MvcHtmlString.Create(result);
         }
 
