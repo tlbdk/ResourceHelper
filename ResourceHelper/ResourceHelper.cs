@@ -574,6 +574,12 @@ namespace ResourceHelper
                             list_min.Add(file);
                             continue;
                         }
+                        // The resource is marked not to be minified
+                        if (resources.Options[file].Minify == false)
+                        {
+                            list_min.Add(file);
+                            continue;
+                        }
                         if (!resources.Debug && File.Exists(server.MapPath(newpath)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(newpath)), info.LastWriteTime) >= 0)
                         {
                             if (isScript && DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
