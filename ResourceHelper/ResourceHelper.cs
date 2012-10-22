@@ -379,7 +379,7 @@ namespace ResourceHelper
             return null;
         }
 
-        private static void MinifyFile(HttpServerUtilityBase server, Dictionary<string, string> offset, string newpath, string oldpath, string outputpath, int timeout, bool strict, bool isScript = true)
+        private static void MinifyFile(string newpath, string oldpath, int timeout, bool isScript = true)
         {
             // Try to write the file 5 times before giving up
             for (int i = 0; i < 5; i++)
@@ -387,11 +387,10 @@ namespace ResourceHelper
                 try
                 {
                     if (isScript)
-                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(server.MapPath(oldpath))));
+                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
                     else
                     {
-                        string fixedCSS = cssFixup(Path.GetDirectoryName(server.MapPath(outputpath)), server.MapPath(oldpath), offset[oldpath], strict);
-                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.CssCompressor.Compress(fixedCSS));
+                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.CssCompressor.Compress(File.ReadAllText(oldpath)));
                     } 
                     break;
                 }
@@ -556,6 +555,8 @@ namespace ResourceHelper
                 // Minify, if enabled
                 if (resources.Minify)
                 {
+                    if (!resources.Bundle) throw new ConfigurationException("Minify requires bundle to be enabled.");
+
                     var _styles_min = new List<string>();
                     var _script_min = new List<string>();
                     foreach (var file in _scripts.Union(_styles))
@@ -601,7 +602,7 @@ namespace ResourceHelper
                         }
 
                         // Minify
-                        MinifyFile(server, resources.PathOffset, server.MapPath(newpath), file, resources.StyleSheetFolder, resources.MimifyTimeout, resources.Strict, isScript);
+                        MinifyFile(server.MapPath(newpath), server.MapPath(file), resources.MimifyTimeout, isScript);
 
                         if (isScript)
                             resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
