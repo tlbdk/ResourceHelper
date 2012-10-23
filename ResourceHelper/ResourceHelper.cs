@@ -11,6 +11,10 @@ using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+using ImageInfo = System.Drawing.Image;
 
 /* Links
  *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
@@ -786,6 +790,43 @@ namespace ResourceHelper
                 html.ViewContext.HttpContext.Items["Resources"] = resources;
             }
             return resources;
+        }
+
+        private static void GenerateSprite(string[] imgs, string destination)
+        {
+            // Load images
+            var images = new List<ImageInfo>();
+            foreach (string imgPath in imgs)
+            {
+                ImageInfo image = ImageInfo.FromFile(imgPath);
+                images.Add(image);
+            }
+
+            // Calculate sprite dimensions
+            int spriteHeight = 0;
+            int spriteWidth = 0;
+            foreach (ImageInfo img in images)
+            {
+                if (img.Width > spriteWidth) spriteWidth = img.Width;
+                spriteHeight += img.Height;
+            }
+
+            // Draw
+            using (var bitmap = new Bitmap(spriteWidth, spriteHeight))
+            {
+                using (var canvas = Graphics.FromImage(bitmap))
+                {
+                    canvas.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    int height = 0;
+                    foreach (ImageInfo img in images)
+                    {
+                        canvas.DrawImage(img, new Point(0, height));
+                        height += img.Height;
+                    }
+                    canvas.Save();
+                }
+                bitmap.Save(destination, ImageFormat.Png);
+            }
         }
     }
 }
