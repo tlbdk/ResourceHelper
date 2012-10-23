@@ -564,7 +564,7 @@ namespace ResourceHelper
                         List<string> list_min;
                         int start = (file.LastIndexOf('/') + 1);
                         string origname = file.Substring(start, (file.LastIndexOf('.') - start));
-                        FileInfo info = new FileInfo(file);
+                        FileInfo info = new FileInfo(server.MapPath(file));
                         string newpath = resources.ScriptFolder + origname + ".min" + info.Extension;
                         bool isScript = info.Extension == ".js";
 
@@ -579,14 +579,16 @@ namespace ResourceHelper
                             list_min.Add(file);
                             continue;
                         }
-                        // The resource is marked not to be minified
+                        // The resource is marked not to be minified. Skip.
                         if (resources.Options[file].Minify == false)
                         {
                             list_min.Add(file);
                             continue;
                         }
+                        // The resource is older than the minified version in cache (if any). Skip.
                         if (!resources.Debug && File.Exists(server.MapPath(newpath)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(newpath)), info.LastWriteTime) >= 0)
                         {
+                            // Update date of latest known Script/CSS if this one is newer.
                             if (isScript && DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
                             {
                                 resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
