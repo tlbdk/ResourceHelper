@@ -11,10 +11,17 @@ using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
+using System.IO;
+using ImageInfo = System.Drawing.Image;
 
 /* Links
  *   Nice alternative with more features, but ugly syntax: https://github.com/jetheredge/SquishIt
  */
+
+// TODO: Handle multiple files with same name and different extension (Or just throw exception)
 
 namespace ResourceHelper
 {
@@ -39,6 +46,7 @@ namespace ResourceHelper
     {
         public Dictionary<int, List<string>> Scripts;
         public Dictionary<int, List<string>> Stylesheets;
+        public Dictionary<int, List<string>> Images;
         public HashSet<string> Rendered;
         public Dictionary<string, string> PathOffset;
         public Dictionary<string, HTMLResourceOptions> Options;
@@ -59,12 +67,14 @@ namespace ResourceHelper
         public string ImageFolder;
         public DateTime LatestScriptFile = DateTime.MinValue;
         public DateTime LatestCSSFile = DateTime.MinValue;
+        public DateTime LatestImageFile = DateTime.MinValue;
 
         public HtmlResources()
         {
             // We store the script and stylesheets on different levels depending on where they where added in the process so we get the order rigth
             Scripts = new Dictionary<int, List<string>>();
             Stylesheets = new Dictionary<int, List<string>>();
+            Images = new Dictionary<int, List<string>>();
             Rendered = new HashSet<string>();
             PathOffset = new Dictionary<string, string>();
             Options = new Dictionary<string, HTMLResourceOptions>();
@@ -188,8 +198,7 @@ namespace ResourceHelper
             {
                 // TODO: We need to some better sanitization of the path we get and move this code into a common function used by both ResourceGroup and Resource
                 var filename = path.Substring(path.LastIndexOf('/') + 1);
-                var asp_path = path.Substring(0, path.LastIndexOf('/'));
-
+                var asp_path = path.Substring(0, path.LastIndexOf('/') + 1);
 
                 var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(asp_path)));
                 files = di.GetFiles(Path.GetFileName(filename), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
@@ -201,6 +210,16 @@ namespace ResourceHelper
                 if (!resources.GroupsLookup.ContainsKey(aspurl))
                 {
                     if (!InCacheFolder(resources, file.FullName)) {
+                        //if resource already in "all", add to group and make group used
+                        var allFiles = resources.Stylesheets.Union(resources.Scripts);
+                        var depth = allFiles.FirstOrDefault(l => l.Value.Contains(aspurl));
+
+                        if(!depth.Equals(default(KeyValuePair<int, List<string>>)))
+                        {
+                            depth.Value.Remove(aspurl);
+                            if(!resources.GroupsUsed.Contains(name)) resources.GroupsUsed.Add(name);
+                        }
+
                         resources.Groups[name].Add(aspurl);
                         resources.GroupsLookup[aspurl] = name;
                     }
@@ -226,41 +245,46 @@ namespace ResourceHelper
         // Simple options: html.Resource("~/Content/Site.css", new ResourceOptions() { Bundle = false });
         public static MvcHtmlString Resource(this HtmlHelper html, string value, HTMLResourceOptions options)
         {
-            return Resource(html, value, null, false, options);
+            return Resource(html, value, null, false, options, false);
+        }
+
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, HTMLResourceOptions options, bool force)
+        {
+            return Resource(html, value, null, false, options, force);
         }
 
         // Simple: html.Resource("~/Content/Site.css");
         // Glob: html.Resource("~/Content/*.css");
         public static MvcHtmlString Resource(this HtmlHelper html, string value)
         {
-            return Resource(html, value, null, false, new HTMLResourceOptions());
+            return Resource(html, value, null, false, new HTMLResourceOptions(), false);
         }
 
         // Glob recursive: html.Resource("~/Content/*.css", true);
         public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive)
         {
-            return Resource(html, value, null, recursive, new HTMLResourceOptions());
+            return Resource(html, value, null, recursive, new HTMLResourceOptions(), false);
         }
 
         // Glob recursive options: html.Resource("~/Content/*.css", true, new ResourceOptions() { Bundle = false });
         public static MvcHtmlString Resource(this HtmlHelper html, string value, bool recursive, HTMLResourceOptions options)
         {
-            return Resource(html, value, null, recursive, options);
+            return Resource(html, value, null, recursive, options, false);
         }
 
         // Regex: html.Resource("~/Content/", @"*\.css$");
         public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex)
         {
-            return Resource(html, value, regex, false, new HTMLResourceOptions());
+            return Resource(html, value, regex, false, new HTMLResourceOptions(), false);
         }
 
         // Regex recursive: html.Resource("~/Content/", @"*\.css$", true);
         public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive)
         {
-            return Resource(html, value, regex, recursive, new HTMLResourceOptions());
+            return Resource(html, value, regex, recursive, new HTMLResourceOptions(), false);
         }
 
-        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive, HTMLResourceOptions options)
+        public static MvcHtmlString Resource(this HtmlHelper html, string value, string regex, bool recursive, HTMLResourceOptions options, bool force)
         {
             var resources = GetResources(html);
 
@@ -287,9 +311,11 @@ namespace ResourceHelper
             // Try to glob for files if it's not a regular expression
             else
             {
-                var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(value)));
-                //TODO: This does not work
-                files = di.GetFiles(Path.GetFileName(server.MapPath(value)), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                var filename = value.Substring(value.LastIndexOf('/') + 1);
+                var asp_path = value.Substring(0, value.LastIndexOf('/') + 1);
+
+                var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(asp_path)));
+                files = di.GetFiles(Path.GetFileName(filename), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
             }
 
             // Throw exception if we are in strict mode and nothing was found
@@ -304,7 +330,7 @@ namespace ResourceHelper
                 var relative_filename = MapPathReverse(html, info.FullName);
                 
                 // Skip cache folders
-                if (InCacheFolder(resources, relative_filename))
+                if (InCacheFolder(resources, relative_filename) && !force)
                 {
                     continue;
                 }
@@ -336,84 +362,73 @@ namespace ResourceHelper
                         {
                             resources.LatestScriptFile = info.LastWriteTime;
                         }
-
-                        // Minify the script file if necessary.
-                        if ((resources.Minify && options.Minify != false) || options.Minify == true)
-                        {
-                            string origname = info.Name.Substring(0, info.Name.LastIndexOf('.'));
-                            if (origname.EndsWith(".min"))
-                            {
-                                // The resource is pre-minified. Skip.
-                                resources.Scripts[depth].Add(relative_filename);
-                            }
-                            else if (!resources.Debug && File.Exists(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension)), info.LastWriteTime) >= 0)
-                                {
-                                    if (DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
-                                    {
-                                        resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(resources.ScriptFolder + origname + ".min" + info.Extension));
-                                    }
-                                    // We have already minified the file. Skip.
-                                    resources.Scripts[depth].Add(resources.ScriptFolder + origname + ".min" + info.Extension);
-                                }
-                                else
-                                {
-                                    // TODO: Try to fix up relative paths if we move the script file to another location
-                                    // Minify file.
-                                    string filename = resources.ScriptFolder + origname + ".min" + info.Extension;
-                                    MinifyFile(server.MapPath(filename), server.MapPath(relative_filename), resources.MimifyTimeout);
-                                    resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(filename));
-
-                                    // Insert the path to the minified file.
-                                    resources.Scripts[depth].Add(filename);
-
-                                    // File changed named because we are using the mimified version
-                                    resources.PathOffset[filename] = resources.PathOffset[relative_filename];
-                                }
-                        }
-                        else
-                        {
-                            resources.Scripts[depth].Add(relative_filename);
-                        }
+                        resources.Scripts[depth].Add(relative_filename);
                     }
                 }
                 else if (relative_filename.EndsWith(".css"))
+                {
+                    // Ensure that list exists.
+                    if (!resources.Stylesheets.Keys.Contains(depth))
                     {
-                        // Ensure that list exists.
-                        if (!resources.Stylesheets.Keys.Contains(depth))
-                        {
-                            resources.Stylesheets.Add(depth, new List<string>());
-                        }
-                        if (!resources.Stylesheets[depth].Contains(relative_filename))
-                        {
-                            // Note the latest date a file was changed.
-                            if (DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
-                            {
-                                resources.LatestCSSFile = info.LastWriteTime;
-                            }
-
-                            resources.Stylesheets[depth].Add(relative_filename);
-                        }
+                        resources.Stylesheets.Add(depth, new List<string>());
                     }
+                    if (!resources.Stylesheets[depth].Contains(relative_filename))
+                    {
+                        // Note the latest date a file was changed.
+                        if (DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
+                        {
+                            resources.LatestCSSFile = info.LastWriteTime;
+                        }
+
+                        resources.Stylesheets[depth].Add(relative_filename);
+                    }
+                }
+                else if (relative_filename.EndsWith(".png") || relative_filename.EndsWith(".gif"))
+                {
+                    // Ensure that list exists.
+                    if (!resources.Images.Keys.Contains(depth))
+                    {
+                        resources.Images.Add(depth, new List<string>());
+                    }
+                    if (!resources.Images[depth].Contains(relative_filename))
+                    {
+                        // Note the latest date a file was changed.
+                        if (DateTime.Compare(resources.LatestImageFile, info.LastWriteTime) < 0)
+                        {
+                            resources.LatestImageFile = info.LastWriteTime;
+                        }
+
+                        resources.Images[depth].Add(relative_filename);
+                    }
+                }
             }
 
             return null;
         }
 
-        // TODO: Implement
-        public static MvcHtmlString Image(this HtmlHelper html, string file)
+        public static MvcHtmlString Image(this HtmlHelper html, string file, string group = "all")
         {
-            return null;
+            html.Resource(file);
+            string imgname = file.Split('/').Last().Split('.').First();
+            string classname = string.Format("{0}-{1}\n", group, imgname);
+
+            // Return css class name
+            return MvcHtmlString.Create(classname);
         }
 
-
-        private static void MinifyFile(string newpath, string oldpath, int timeout)
+        private static void MinifyFile(string newpath, string oldpath, int timeout, bool isScript = true)
         {
             // Try to write the file 5 times before giving up
             for (int i = 0; i < 5; i++)
             {
                 try
                 {
-                    WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+                    if (isScript)
+                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.JavaScriptCompressor.Compress(File.ReadAllText(oldpath)));
+                    else
+                    {
+                        WriteAllTextExclusive(newpath, Yahoo.Yui.Compressor.CssCompressor.Compress(File.ReadAllText(oldpath)));
+                    } 
                     break;
                 }
                 catch (IOException)
@@ -458,8 +473,10 @@ namespace ResourceHelper
         public static MvcHtmlString RenderResources(this HtmlHelper html)
         {
             string result = "";
+
+            result += RenderResources(html, "all").ToHtmlString();
             
-            var resources = (HtmlResources)html.ViewData["Resources"];
+            var resources = GetResources(html);
             if (resources != null)
             {
                 // Render all groups we used
@@ -468,7 +485,6 @@ namespace ResourceHelper
                     result += RenderResources(html, groupname).ToHtmlString();
                 }
             }
-            result += RenderResources(html, "all").ToHtmlString();
 
             return MvcHtmlString.Create(result);
         }
@@ -489,7 +505,7 @@ namespace ResourceHelper
         {
             var url = new UrlHelper(html.ViewContext.RequestContext);
             var server = html.ViewContext.RequestContext.HttpContext.Server;
-            var resources = (HtmlResources)html.ViewData["Resources"];
+            var resources = GetResources(html);
             string result = "";
 
             if (resources != null)
@@ -505,6 +521,39 @@ namespace ResourceHelper
                 else if(!resources.Groups.ContainsKey(groupname) && groupname != "all")
                 {
                     throw new Exception("Can not find resource group " + groupname);
+                }
+
+                // Make sprite
+                IEnumerable<int> imgKeys = resources.Images.Keys.OrderByDescending(k => k).AsEnumerable();
+                var _images = new List<string>();
+                foreach (int key in imgKeys)
+                {
+                    foreach (var image in resources.Images[key])
+                    {
+                        if (!resources.Rendered.Contains(image))
+                        {
+                            if (resources.GroupsLookup.ContainsKey(image))
+                            {
+                                if (resources.GroupsLookup[image] != groupname)
+                                {
+                                    continue;
+                                }
+                            }
+                            else if (groupname != "all")
+                            {
+                                continue;
+                            }
+                            _images.Add(image);
+                            resources.Rendered.Add(image);
+                        }
+                    }
+                }
+                if (_images.Any())
+                {
+                    string stylepath = string.Format("{0}sprite-{1}.css", resources.CacheFolder, groupname);
+                    GenerateSprite(server, _images, resources.CacheFolder, groupname);
+                    html.ResourceGroup(groupname, stylepath);
+                    html.Resource(stylepath, new HTMLResourceOptions(), true);
                 }
 
                 // Create ordered lists of scripts and stylesheets.
@@ -573,41 +622,111 @@ namespace ResourceHelper
                     resources.LatestCSSFile = DateTime.Now;
                 }
 
+                // Minify, if enabled
+                if (resources.Minify)
+                {
+                    if (!resources.Bundle) throw new ConfigurationException("Minify requires bundle to be enabled.");
+
+                    var _styles_min = new List<string>();
+                    var _script_min = new List<string>();
+                    foreach (var file in _scripts.Union(_styles))
+                    {
+                        List<string> list_min;
+                        int start = (file.LastIndexOf('/') + 1);
+                        string origname = file.Substring(start, (file.LastIndexOf('.') - start));
+                        FileInfo info = new FileInfo(server.MapPath(file));
+                        string newpath = resources.ScriptFolder + origname + ".min" + info.Extension;
+                        bool isScript = info.Extension == ".js";
+
+                        if (isScript)    
+                            list_min = _script_min;
+                        else                            
+                            list_min = _styles_min;
+
+                        // The resource is pre-minified. Skip.
+                        if (origname.EndsWith(".min"))
+                        {
+                            list_min.Add(file);
+                            continue;
+                        }
+                        // The resource is marked not to be minified. Skip.
+                        if (resources.Options[file].Minify == false)
+                        {
+                            list_min.Add(file);
+                            continue;
+                        }
+                        // The resource is older than the minified version in cache (if any). Skip.
+                        if (!resources.Debug && File.Exists(server.MapPath(newpath)) && DateTime.Compare(File.GetLastWriteTime(server.MapPath(newpath)), info.LastWriteTime) >= 0)
+                        {
+                            // Update date of latest known Script/CSS if this one is newer.
+                            if (isScript && DateTime.Compare(resources.LatestScriptFile, info.LastWriteTime) < 0)
+                            {
+                                resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
+                            }
+                            else if (!isScript && DateTime.Compare(resources.LatestCSSFile, info.LastWriteTime) < 0)
+                            {
+                                resources.LatestCSSFile = File.GetLastWriteTime(server.MapPath(newpath));
+                            }
+                            resources.PathOffset[newpath] = resources.PathOffset[file];
+                            resources.Options[newpath] = resources.Options[file];
+                            list_min.Add(newpath);
+                            continue;
+                        }
+
+                        // Minify
+                        MinifyFile(server.MapPath(newpath), server.MapPath(file), resources.MimifyTimeout, isScript);
+
+                        if (isScript)
+                            resources.LatestScriptFile = File.GetLastWriteTime(server.MapPath(newpath));
+                        else
+                            resources.LatestCSSFile = File.GetLastWriteTime(server.MapPath(newpath));
+
+                        resources.PathOffset[newpath] = resources.PathOffset[file];
+                        resources.Options[newpath] = resources.Options[file];
+                        list_min.Add(newpath);
+                    }
+                    _scripts = _script_min;
+                    _styles = _styles_min;
+                }
+
+                // If bundle, bundle and add single script/style tags
                 if (resources.Bundle)
                 {
-                    if (_scripts.Count > 0)
+                    List<string> bScripts = _scripts.Where(s => resources.Options[s].Bundle != false).ToList();
+                    _scripts = _scripts.Except(bScripts).ToList();
+                    List<string> bStyles = _styles.Where(s => resources.Options[s].Bundle != false).ToList();
+                    _styles = _styles.Except(bStyles).ToList();
+
+                    if (bScripts.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string scriptPath = resources.ScriptFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _scripts)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.js";
-                        BundleFiles(server, resources.LatestScriptFile, _scripts, resources.PathOffset, scriptPath, resources.Strict, resources.BundleTimeout);
+                        string scriptPath = resources.ScriptFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", bScripts)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.js";
+                        BundleFiles(server, resources.LatestScriptFile, bScripts, resources.PathOffset, scriptPath, resources.Strict, resources.BundleTimeout);
                         result += "<script src=\"" + url.Content(scriptPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(scriptPath))) + "\" type=\"text/javascript\"></script>\n";
                     }
 
-                    if (_styles.Count > 0)
+                    if (bStyles.Count > 0)
                     {
                         // Get a hash of the files in question and generate a path.
-                        string cssPath = resources.StyleSheetFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", _styles)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.css";
-                        BundleFiles(server, resources.LatestCSSFile, _styles, resources.PathOffset, cssPath, resources.Strict, resources.BundleTimeout);
+                        string cssPath = resources.StyleSheetFolder + BitConverter.ToString(new MD5CryptoServiceProvider().ComputeHash(Encoding.UTF8.GetBytes(string.Join(";", bStyles)))).Replace("-", "").ToLower() + "." + groupname + "-bundle.css";
+                        BundleFiles(server, resources.LatestCSSFile, bStyles, resources.PathOffset, cssPath, resources.Strict, resources.BundleTimeout);
                         result += "<link href=\"" + url.Content(cssPath) + "?" + String.Format("{0:yyyyMMddHHmmss}", File.GetLastWriteTime(server.MapPath(cssPath))) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                     }
                 }
-                else
+
+                // Render script/style tags
+                foreach (string resource in _scripts)
                 {
-                    foreach (string resource in _styles)
-                    {
-                        DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
-                        result += "<link href=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
-                    }
-                    foreach (string resource in _scripts)
-                    {
-                        DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
-                        result += "<script src=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" type=\"text/javascript\"></script>\n";
-                    }
+                    DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
+                    result += "<script src=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" type=\"text/javascript\"></script>\n";
+                }
+                foreach (string resource in _styles)
+                {
+                    DateTime dt = File.GetLastWriteTime(server.MapPath(resource));
+                    result += "<link href=\"" + url.Content(resource) + "?" + String.Format("{0:yyyyMMddHHmmss}", dt) + "\" rel=\"stylesheet\" type=\"text/css\" />\n";
                 }
             }
 
-            // Clear Resources
-            //html.ViewData["Resources"] = null;
             return MvcHtmlString.Create(result);
         }
 
@@ -648,7 +767,7 @@ namespace ResourceHelper
                         success = true;
                         break;
                     }
-                    catch (IOException)
+                    catch (IOException ex)
                     {
                         Thread.Sleep(timeout / 5);
                     }
@@ -729,13 +848,75 @@ namespace ResourceHelper
         private static HtmlResources GetResources(HtmlHelper html)
         {
             // Store state in the ViewData //TODO: Implment some kind of IIS caching so we don't do this for every page load
-            var resources = (HtmlResources)html.ViewData["Resources"];
+            var resources = (HtmlResources)html.ViewContext.HttpContext.Items["Resources"];
+
             if (resources == null)
             {
                 resources = new HtmlResources();
-                html.ViewData["Resources"] = resources;
+                html.ViewContext.HttpContext.Items["Resources"] = resources;
             }
             return resources;
+        }
+
+        // Generate sprite (PNG + CSS files) at the given destination
+        private static void GenerateSprite(HttpServerUtilityBase server, List<string> imgs, string destination, string groupname = "all")
+        {
+            // Load images
+            var images = new List<ImageInfo>();
+            foreach (string imgPath in imgs)
+            {
+                ImageInfo image = ImageInfo.FromFile(server.MapPath(imgPath));
+                images.Add(image);
+            }
+
+            // Calculate sprite dimensions
+            int spriteHeight = 0;
+            int spriteWidth = 0;
+            var yoffsets = new Queue<int>();
+            foreach (ImageInfo img in images)
+            {
+                if (img.Width > spriteWidth) spriteWidth = img.Width;
+                yoffsets.Enqueue(spriteHeight);
+                spriteHeight += img.Height;
+            }
+
+            // Draw
+            string imgfilename = string.Format("sprite-{0}.png", groupname);
+            string imgpath = destination + imgfilename;
+            using (var bitmap = new Bitmap(spriteWidth, spriteHeight))
+            {
+                using (var canvas = Graphics.FromImage(bitmap))
+                {
+                    canvas.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    int height = 0;
+                    foreach (ImageInfo img in images)
+                    {
+                        canvas.DrawImage(img, new Point(0, height));
+                        height += img.Height;
+                    }
+                    canvas.Save();
+                }
+                bitmap.Save(server.MapPath(imgpath), ImageFormat.Png);
+            }
+
+            // Make CSS
+            string cssfilename = destination + string.Format("sprite-{0}.css", groupname);
+            string imageurl = imgpath.Substring(2, imgpath.Length - 2); // Remove the ~/ from the image path to be uas a relative url url
+            using (StreamWriter writer = File.CreateText(server.MapPath(cssfilename)))
+            {
+                foreach (var img in imgs)
+                {
+                    string imgname = img.Split('/').Last().Split('.').First();
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append(string.Format(".{0}-{1}\n", groupname, imgname));
+                    sb.Append("{\n");
+                    sb.Append(string.Format("background-position: 0px -{0}px;\n", yoffsets.Dequeue()));
+                    sb.Append(string.Format("background-image: url({0});\n", imgfilename));
+                    sb.Append("background-repeat: no-repeat;\n");
+                    sb.Append("}\n");
+                    writer.WriteLine(sb.ToString());
+                }
+            }
         }
     }
 }
