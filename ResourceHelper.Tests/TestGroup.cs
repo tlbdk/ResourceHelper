@@ -126,8 +126,9 @@ namespace ResourceHelper.Tests
             html.ResourceGroup("widgetimg-large", "~/Content/images/widgets/*.large.gif");
 
             var test = html.Image("~/Content/images/widgets/damconews-small.gif");
-
-
+            html.RenderResources();
+            // TODO: This might not work as we only get a sprite with one image in it
+            Assert.True(File.Exists(WebRoot + @"\Content\cache\sprite-all.png"), "Check that sprits files gets created");
         }
 
 
