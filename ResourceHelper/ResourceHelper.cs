@@ -186,8 +186,13 @@ namespace ResourceHelper
             // Try to glob for files if it's not a regular expression
             else
             {
-                var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(path)));
-                files = di.GetFiles(Path.GetFileName(path), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+                // TODO: We need to some better sanitization of the path we get and move this code into a common function used by both ResourceGroup and Resource
+                var filename = path.Substring(path.LastIndexOf('/') + 1);
+                var asp_path = path.Substring(0, path.LastIndexOf('/'));
+
+
+                var di = new DirectoryInfo(Path.GetDirectoryName(server.MapPath(asp_path)));
+                files = di.GetFiles(Path.GetFileName(filename), recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
             }
 
             foreach (var file in files)

@@ -26,7 +26,7 @@ namespace ResourceHelper.Tests
         }
 
         [Test]
-        [Ignore("TODO: Implement HttpContext.Cache support")]
+        //[Ignore("TODO: Implement HttpContext.Cache support")]
         public void TestResourceCaching()
         {
             HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
@@ -36,11 +36,17 @@ namespace ResourceHelper.Tests
             html.Resource("~/Content/themes/base/jquery.ui.dialog.css");
             var htmlstr = html.RenderResources().ToHtmlString();
 
+            html.ViewContext.HttpContext.Cache["test"] = 1;
+
             // TODO: We should be getting resources from HttpContext.Cache and all file stat's info should also be contained there
+            // Do new request and try use the same resources
             html = FakeUtils.CreateHtmlHelper(WebRoot);          
             html.Resource("~/Content/Test.css");
             html.Resource("~/Content/themes/base/jquery.ui.dialog.css");
             htmlstr = html.RenderResources().ToHtmlString();
+
+
+
         }
     }
 }

@@ -10,11 +10,6 @@ using System.Web.Routing;
 using System.IO;
 using System.Configuration;
 
-// Links: http://www.hanselman.com/blog/NuGetPackageOfTheWeek1ASPNETSpriteAndImageOptimization.aspx
-// TODO: Support Html.ResourceGroup("~/Content/widget-small") // This index all the resource in widget-small and create sprite out of the images in the folder
-//               Html.Resource("~/Content/widget-small/news.gif") // This creates an image tag pointing to the sprite, use Cache to store lookup map
-//               <img class="test" style="@Html.Resource("~/Content/widget-small/news.gif")" />
-
 namespace ResourceHelper.Tests
 {
     [TestFixture]
@@ -117,6 +112,25 @@ namespace ResourceHelper.Tests
                 Assert.AreEqual("Can not find resource group thisdoesnotexist", ex.Message);
             }
         }
+
+        // Links: http://www.hanselman.com/blog/NuGetPackageOfTheWeek1ASPNETSpriteAndImageOptimization.aspx
+        // TODO: Support Html.ResourceGroup("~/Content/widget-small") // This index all the resource in widget-small and create sprite out of the images in the folder
+        //               Html.Resource("~/Content/widget-small/news.gif") // This creates an image tag pointing to the sprite, use Cache to store lookup map
+        //               <img class="test" style="@Html.Resource("~/Content/widget-small/news.gif")" />
+
+        [Test]
+        public void TestGroupImages()
+        {
+            HtmlHelper html = FakeUtils.CreateHtmlHelper(WebRoot);
+            html.ResourceGroup("widgetimg-small", "~/Content/images/widgets/*.small.gif");
+            html.ResourceGroup("widgetimg-large", "~/Content/images/widgets/*.large.gif");
+
+            var test = html.Image("~/Content/images/widgets/damconews-small.gif");
+
+
+        }
+
+
 
     }
 }

@@ -9,6 +9,7 @@ using System.IO;
 using System.Reflection;
 using System.Collections.Specialized;
 using System.Web.SessionState;
+using System.Web.Caching;
 
 namespace ResourceHelper.Tests
 {
@@ -75,6 +76,16 @@ namespace ResourceHelper.Tests
         public override HttpSessionStateBase Session
         {
             get { return new FakeHttpSession(); }
+        }
+
+        public override Cache Cache
+        {
+            get {
+                HttpRequest request = new HttpRequest(string.Empty, "http://tempuri.org", string.Empty);
+                HttpResponse response = new HttpResponse(new StreamWriter(new MemoryStream()));
+                HttpContext context = new HttpContext(request, response);
+                return context.Cache;
+            }
         }
     }
 
